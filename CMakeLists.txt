@@ -44,6 +44,10 @@ nm_use_high_compiler_warning_level()
 add_subdirectory(deps)
 
 
+## Build Incremental Monkey
+add_subdirectory(tools)
+
+
 ### Testing
 
 nm_add_gtest()
