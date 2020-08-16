@@ -1,0 +1,3 @@
+[submodule "etc/cmake/nicemake"]
+	path = etc/cmake/nicemake
+	url = https://github.com/fkutzner/nicemake
