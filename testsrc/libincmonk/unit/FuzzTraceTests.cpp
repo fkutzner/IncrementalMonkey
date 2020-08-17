@@ -93,7 +93,7 @@ INSTANTIATE_TEST_CASE_P(, FuzzTraceTests_toCFunctionBody,
 
 class RecordingIPASIRSolver : public IPASIRSolver {
 public:
-  RecordingIPASIRSolver(std::vector<int> const& solveResults)
+  RecordingIPASIRSolver(std::vector<IPASIRSolver::Result> const& solveResults)
   {
     m_solveResults.assign(solveResults.rbegin(), solveResults.rend());
   }
@@ -108,15 +108,15 @@ public:
     m_recordedTrace.push_back(AssumeCmd{assumptions});
   }
 
-  auto solve() -> int override
+  auto solve() -> IPASIRSolver::Result override
   {
     assert(!m_solveResults.empty());
-    int const result = m_solveResults.back();
+    IPASIRSolver::Result const result = m_solveResults.back();
     m_solveResults.pop_back();
 
     std::optional<bool> traceResult;
-    if (result > 0) {
-      traceResult = (result == 10);
+    if (result == IPASIRSolver::Result::SAT || result == IPASIRSolver::Result::UNSAT) {
+      traceResult = (result == IPASIRSolver::Result::SAT);
     }
 
     m_recordedTrace.push_back(SolveCmd{traceResult});
@@ -130,7 +130,7 @@ public:
   auto hasConfigureBeenCalled() const noexcept -> bool { return m_calledConfigure; }
 
 private:
-  std::vector<int> m_solveResults;
+  std::vector<IPASIRSolver::Result> m_solveResults;
   FuzzTrace m_recordedTrace;
   bool m_calledConfigure = false;
 };
@@ -142,16 +142,17 @@ public:
 };
 
 namespace {
-std::vector<int> getSolveResults(FuzzTrace const& trace)
+std::vector<IPASIRSolver::Result> getSolveResults(FuzzTrace const& trace)
 {
-  std::vector<int> result;
+  std::vector<IPASIRSolver::Result> result;
   for (FuzzCmd const& cmd : trace) {
     if (SolveCmd const* solveCmd = std::get_if<SolveCmd>(&cmd); solveCmd != nullptr) {
       if (solveCmd->expectedResult.has_value()) {
-        result.push_back(*(solveCmd->expectedResult) ? 10 : 20);
+        result.push_back(*(solveCmd->expectedResult) ? IPASIRSolver::Result::SAT
+                                                     : IPASIRSolver::Result::UNSAT);
       }
       else {
-        result.push_back(0);
+        result.push_back(IPASIRSolver::Result::UNKNOWN);
       }
     }
   }
@@ -215,7 +216,8 @@ TEST_F(FuzzTraceTests_applyTrace, WhenSolvingFails_ThenIndexOfFailingCmdIsReturn
   };
   // clang-format on
 
-  std::vector<int> solveResults{10, 20, 20};
+  std::vector<IPASIRSolver::Result> solveResults{
+      IPASIRSolver::Result::SAT, IPASIRSolver::Result::UNSAT, IPASIRSolver::Result::UNSAT};
 
   RecordingIPASIRSolver recorder{solveResults};
   std::optional<size_t> resultIndex = applyTrace(input, recorder);

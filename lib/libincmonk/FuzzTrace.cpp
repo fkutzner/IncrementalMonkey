@@ -122,10 +122,10 @@ auto applyCmd(IPASIRSolver& solver, AssumeCmd const& cmd) -> bool
 
 auto applyCmd(IPASIRSolver& solver, SolveCmd const& cmd) -> bool
 {
-  int result = solver.solve();
+  IPASIRSolver::Result result = solver.solve();
 
   if (cmd.expectedResult.has_value()) {
-    bool const isSat = (result == 10);
+    bool const isSat = (result == IPASIRSolver::Result::SAT);
     return *(cmd.expectedResult) == isSat;
   }
   return true;
