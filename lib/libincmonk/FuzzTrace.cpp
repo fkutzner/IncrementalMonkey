@@ -169,7 +169,7 @@ auto toString(std::string const& solverVarName, SolveCmd const& cmd) -> std::str
     std::string result;
     result += "{int result = ipasir_solve(" + solverVarName + "); assert(result == ";
     result += (*cmd.expectedResult ? "10" : "20");
-    result += ");\n";
+    result += ");}\n";
     return result;
   }
   else {

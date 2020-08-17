@@ -69,8 +69,8 @@ INSTANTIATE_TEST_CASE_P(, FuzzTraceTests_toCFunctionBody,
       "ipasir_assume(solver, 1);ipasir_assume(solver, -2);ipasir_assume(solver, -3);"),
 
     std::make_tuple(FuzzTrace{SolveCmd{}}, "ipasir_solve(solver);"),
-    std::make_tuple(FuzzTrace{SolveCmd{false}}, "{int result = ipasir_solve(solver); assert(result == 20);"),
-    std::make_tuple(FuzzTrace{SolveCmd{true}}, "{int result = ipasir_solve(solver); assert(result == 10);"),
+    std::make_tuple(FuzzTrace{SolveCmd{false}}, "{int result = ipasir_solve(solver); assert(result == 20);}"),
+    std::make_tuple(FuzzTrace{SolveCmd{true}}, "{int result = ipasir_solve(solver); assert(result == 10);}"),
 
     std::make_tuple(
       FuzzTrace{
@@ -82,7 +82,7 @@ INSTANTIATE_TEST_CASE_P(, FuzzTraceTests_toCFunctionBody,
       "ipasir_add(solver, 1);ipasir_add(solver, -2);ipasir_add(solver, 0);"
       "ipasir_add(solver, -2);ipasir_add(solver, 4);ipasir_add(solver, 0);"
       "ipasir_assume(solver, 1);"
-      "{int result = ipasir_solve(solver); assert(result == 10);"
+      "{int result = ipasir_solve(solver); assert(result == 10);}"
     )
   )
 );
