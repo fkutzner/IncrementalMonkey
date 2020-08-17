@@ -26,12 +26,12 @@
 
 #include "FileUtils.h"
 
+#include <libincmonk/IOUtils.h>
+
 #include <gsl/gsl_util>
 
 #include <fstream>
 #include <random>
-
-#include <iostream>
 
 namespace fs = std::filesystem;
 
@@ -101,16 +101,18 @@ auto slurpUInt32File(std::filesystem::path const& path) -> std::optional<std::ve
   do {
     std::array<uint32_t, 256> buffer;
     nRead = fread(buffer.data(), 4, 256, input);
-    // TODO: deal with endianness
     std::copy(buffer.begin(), buffer.begin() + nRead, std::back_inserter(result));
   } while (nRead != 0);
 
+  std::transform(result.begin(), result.end(), result.begin(), fromSmallEndian);
   return result;
 }
 
-void writeUInt32VecToFile(std::vector<uint32_t> data, std::filesystem::path const& path)
+void writeUInt32VecToFile(std::vector<uint32_t> const& data, std::filesystem::path const& path)
 {
-  // TODO: deal with endianness
+  std::vector<uint32_t> smallEndianData = data;
+  std::transform(
+      smallEndianData.begin(), smallEndianData.end(), smallEndianData.begin(), toSmallEndian);
 
   FILE* output = fopen(path.string().c_str(), "w");
   if (output == nullptr) {
@@ -118,7 +120,9 @@ void writeUInt32VecToFile(std::vector<uint32_t> data, std::filesystem::path cons
   }
   auto fileCloser = gsl::finally([output]() { fclose(output); });
 
-  std::size_t written = fwrite(data.data(), data.size(), 1, output);
+  std::size_t written =
+      fwrite(smallEndianData.data(), smallEndianData.size() * sizeof(uint32_t), 1, output);
+
   if (written != 1) {
     throw TestIOException("Failed to write " + path.string());
   }

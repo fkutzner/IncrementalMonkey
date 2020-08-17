@@ -136,5 +136,10 @@ public:
 void storeTrace(FuzzTrace const& trace, std::filesystem::path const& filename);
 
 
+/**
+ * \brief Loads the trace from the given file
+ * 
+ * \throw IOException   on file I/O failures and file format errors
+ */
 auto loadTrace(std::filesystem::path const& filename) -> FuzzTrace;
 }

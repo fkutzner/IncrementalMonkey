@@ -252,18 +252,18 @@ TEST_P(FuzzTraceTests_loadStoreTrace, TestSuite_store)
   EXPECT_THAT(result, ::testing::Eq(expected));
 }
 
-/*TEST_P(FuzzTraceTests_loadStoreTrace, TestSuite_load)
+TEST_P(FuzzTraceTests_loadStoreTrace, TestSuite_loadCorrectlyFormattedFile)
 {
   PathWithDeleter tempFile = createTempFile();
   std::vector<std::uint32_t> input = std::get<1>(GetParam());
-  
+
   writeUInt32VecToFile(input, tempFile.getPath());
 
   FuzzTrace expected = std::get<0>(GetParam());
   FuzzTrace result = loadTrace(tempFile.getPath());
 
   EXPECT_THAT(result, ::testing::Eq(expected));
-}*/
+}
 
 
 namespace {
@@ -329,4 +329,6 @@ INSTANTIATE_TEST_CASE_P(, FuzzTraceTests_loadStoreTrace,
   )
 );
 // clang-format on
+
+// TODO: negative parsing tests
 }

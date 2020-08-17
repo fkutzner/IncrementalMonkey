@@ -25,6 +25,7 @@
 */
 
 #include <libincmonk/FuzzTrace.h>
+#include <libincmonk/IOUtils.h>
 #include <libincmonk/IPASIRSolver.h>
 
 #include <gsl/gsl_util>
@@ -198,8 +199,7 @@ constexpr uint32_t magicCookie = 0xABCD0000; // 0xFFFF0000 + format version
 
 void appendToTraceBuffer(uint32_t value, std::vector<uint32_t>& buffer)
 {
-  // TODO: deal with endianness here
-  buffer.push_back(value);
+  buffer.push_back(toSmallEndian(value));
 }
 
 uint32_t litAsBinary(CNFLit lit)
@@ -252,13 +252,111 @@ void storeTrace(FuzzTrace const& trace, std::filesystem::path const& filename)
 
   FILE* output = fopen(filename.string().c_str(), "w");
   if (output == nullptr) {
-    throw IOException("Could not open file " + filename.string());
+    throw IOException{"Could not open file " + filename.string()};
   }
 
-  auto closeOutput = gsl::finally([&output]() { fclose(output); });
+  auto closeOutput = gsl::finally([output]() { fclose(output); });
   size_t written = fwrite(buffer.data(), buffer.size() * sizeof(uint32_t), 1, output);
   if (written != 1) {
-    throw IOException("I/O error while writing to " + filename.string());
+    throw IOException{"I/O error while writing to " + filename.string()};
   }
+}
+
+namespace {
+std::vector<CNFLit> readCNFLits(FILE* input, size_t size)
+{
+  std::vector<uint32_t> buffer;
+  buffer.resize(size);
+  size_t numRead = fread(buffer.data(), sizeof(uint32_t), size, input);
+  if (numRead != size) {
+    throw IOException{"Unexpected end of file"};
+  }
+
+  std::transform(buffer.begin(), buffer.end(), buffer.begin(), fromSmallEndian);
+
+  std::vector<CNFLit> result;
+  for (uint32_t i : buffer) {
+    if (i == 0 || (i & 0xFF000000) != 0) {
+      throw IOException{"Bad literal"};
+    }
+
+    int sign = ((i & 1) == 1 ? -1 : 1);
+    result.push_back(static_cast<int32_t>(i / 2) * sign);
+  }
+
+  return result;
+}
+
+std::optional<FuzzCmd> readFuzzCmd(FILE* input)
+{
+  uint32_t cmdHeader;
+  size_t const numReadHeader = fread(&cmdHeader, sizeof(uint32_t), 1, input);
+  if (numReadHeader == 0) {
+    return std::nullopt;
+  }
+
+  cmdHeader = fromSmallEndian(cmdHeader);
+
+  uint32_t const type = cmdHeader >> 24;
+
+  if (type == 1) {
+    AddClauseCmd result;
+    result.clauseToAdd = readCNFLits(input, cmdHeader & 0x00FFFFFF);
+    return result;
+  }
+  else if (type == 2) {
+    AssumeCmd result;
+    result.assumptions = readCNFLits(input, cmdHeader & 0x00FFFFFF);
+    return result;
+  }
+  else if (type == 3) {
+    SolveCmd result;
+    uint32_t expected = cmdHeader & 0xFF;
+    if (expected == 10 || expected == 20) {
+      result.expectedResult = (expected == 10);
+    }
+    else if (expected != 0) {
+      throw IOException{"Invalid fuzz command value"};
+    }
+    return result;
+  }
+  else {
+    throw IOException{"Invalid fuzz command header"};
+  }
+}
+
+bool readMagicCookie(FILE* input)
+{
+  uint32_t cookie;
+  size_t const numRead = fread(&cookie, sizeof(uint32_t), 1, input);
+  if (numRead != 1) {
+    return false;
+  }
+
+  return fromSmallEndian(cookie) == magicCookie;
+}
+}
+
+auto loadTrace(std::filesystem::path const& filename) -> FuzzTrace
+{
+  FuzzTrace result;
+
+  FILE* input = fopen(filename.string().c_str(), "r");
+  if (input == nullptr) {
+    throw IOException("Could not open file " + filename.string());
+  }
+  auto closeInput = gsl::finally([input]() { fclose(input); });
+
+  if (!readMagicCookie(input)) {
+    throw IOException{"Bad file format: magic cookie not found"};
+  }
+
+  std::optional<FuzzCmd> currentCmd = readFuzzCmd(input);
+  while (currentCmd.has_value()) {
+    result.push_back(*currentCmd);
+    currentCmd = readFuzzCmd(input);
+  }
+
+  return result;
 }
 }
