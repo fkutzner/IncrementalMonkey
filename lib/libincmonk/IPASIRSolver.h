@@ -24,7 +24,23 @@
 
 */
 
-auto main(int argc, char** argv) -> int
-{
-  return 0;
+#include <string>
+#include <vector>
+
+#include "CNF.h"
+
+namespace incmonk {
+
+class IPASIRSolver {
+public:
+  IPASIRSolver(std::string const& dsoPath);
+  virtual ~IPASIRSolver();
+
+  virtual void addClause(std::vector<int> const& clause) = 0;
+  virtual void assume(std::vector<int> const& assumptions) = 0;
+  virtual void solve() = 0;
+
+  virtual void configure(uint64_t value) = 0;
+};
+
 }

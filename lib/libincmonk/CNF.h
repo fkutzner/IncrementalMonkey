@@ -24,7 +24,14 @@
 
 */
 
-auto main(int argc, char** argv) -> int
-{
-  return 0;
+#pragma once
+
+#include <vector>
+
+namespace incmonk {
+
+using CNFLit = int32_t;
+using CNFClause = std::vector<CNFLit>;
+using CNFProblem = std::vector<CNFClause>;
+
 }
