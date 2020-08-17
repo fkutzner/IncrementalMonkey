@@ -32,7 +32,7 @@
 
 #include <filesystem>
 #include <optional>
-#include <stdio.h>
+#include <ostream>
 #include <variant>
 #include <vector>
 
@@ -40,7 +40,7 @@
 
 namespace incmonk {
 
-class IPASIRSatSolver;
+class IPASIRSolver;
 
 /**
  * \brief A FuzzTrace command representing the addition of a clause, i.e. a sequence
@@ -50,6 +50,10 @@ struct AddClauseCmd {
   CNFClause clauseToAdd;
 };
 
+auto operator==(AddClauseCmd const& lhs, AddClauseCmd const& rhs) noexcept -> bool;
+auto operator!=(AddClauseCmd const& lhs, AddClauseCmd const& rhs) noexcept -> bool;
+auto operator<<(std::ostream& stream, AddClauseCmd const& cmd) -> std::ostream&;
+
 /**
  * \brief A FuzzTrace command representing the assumption of facts, i.e. a sequence
  *   of `ipasir_assume()` calls.
@@ -57,6 +61,10 @@ struct AddClauseCmd {
 struct AssumeCmd {
   std::vector<CNFLit> assumptions;
 };
+
+auto operator==(AssumeCmd const& lhs, AssumeCmd const& rhs) noexcept -> bool;
+auto operator!=(AssumeCmd const& lhs, AssumeCmd const& rhs) noexcept -> bool;
+auto operator<<(std::ostream& stream, AssumeCmd const& cmd) -> std::ostream&;
 
 /**
  * \brief A FuzzTrace command representing an `ipasir_solve` invocation.
@@ -66,10 +74,16 @@ struct SolveCmd {
   std::optional<bool> expectedResult;
 };
 
+auto operator==(SolveCmd const& lhs, SolveCmd const& rhs) noexcept -> bool;
+auto operator!=(SolveCmd const& lhs, SolveCmd const& rhs) noexcept -> bool;
+auto operator<<(std::ostream& stream, SolveCmd const& cmd) -> std::ostream&;
+
 /**
  * \brief A FuzzTrace element, containing any FuzzTrace command.
  */
 using FuzzCmd = std::variant<AddClauseCmd, AssumeCmd, SolveCmd>;
+
+auto operator<<(std::ostream& stream, FuzzCmd const& cmd) -> std::ostream&;
 
 /**
  * \brief A trace of IPASIR commands.
@@ -81,10 +95,11 @@ using FuzzTrace = std::vector<FuzzCmd>;
  * \brief Applies the given trace to an IPASIR SAT solver, checking
  *   any expected SolveCmd results if specified.
  * 
- * \returns The number of the first SolveCmd within `trace` for which
- *   the SAT solver returned an unexpected result.
+ * \returns The index of the first SolveCmd within `trace` for which
+ *   the SAT solver returned an unexpected result. Otherwise, nothing
+ *   is returned.
  */
-auto applyTrace(FuzzTrace const& trace, IPASIRSatSolver& target) -> std::optional<size_t>;
+auto applyTrace(FuzzTrace const& trace, IPASIRSolver& target) -> std::optional<size_t>;
 
 
 /**
@@ -92,13 +107,16 @@ auto applyTrace(FuzzTrace const& trace, IPASIRSatSolver& target) -> std::optiona
  *   
  * No `ipasir_init` or `ipasir_destroy` calls are generated.
  * 
+ * Usage example: generate regression tests for error traces.
+ * 
  * \param trace       The trace to be translated
  * \param solverName  The variable name of the IPASIR solver pointer (ie. the `void*` argument)
+ * 
+ * \returns           A newline-separated sequence of IPASIR function calls corresponding to `trace`
  */
 auto toCFunctionBody(FuzzTrace const& trace, std::string const& solverName) -> std::string;
 
 
 void storeTrace(FuzzTrace const& trace, std::filesystem::path const& filename);
 auto loadTrace(std::filesystem::path const& filename) -> FuzzTrace;
-auto loadTrace(FILE* stream) -> FuzzTrace;
 }

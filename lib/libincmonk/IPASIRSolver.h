@@ -33,12 +33,12 @@ namespace incmonk {
 
 class IPASIRSolver {
 public:
-  IPASIRSolver(std::string const& dsoPath);
-  virtual ~IPASIRSolver();
+  IPASIRSolver() = default;
+  virtual ~IPASIRSolver() = default;
 
-  virtual void addClause(std::vector<int> const& clause) = 0;
-  virtual void assume(std::vector<int> const& assumptions) = 0;
-  virtual void solve() = 0;
+  virtual void addClause(CNFClause const& clause) = 0;
+  virtual void assume(std::vector<CNFLit> const& assumptions) = 0;
+  virtual int solve() = 0;
 
   virtual void configure(uint64_t value) = 0;
 };

@@ -25,12 +25,123 @@
 */
 
 #include <libincmonk/FuzzTrace.h>
+#include <libincmonk/IPASIRSolver.h>
 
 #include <string>
 #include <type_traits>
 #include <variant>
 
 namespace incmonk {
+
+auto operator==(AddClauseCmd const& lhs, AddClauseCmd const& rhs) noexcept -> bool
+{
+  return &lhs == &rhs || lhs.clauseToAdd == rhs.clauseToAdd;
+}
+
+auto operator!=(AddClauseCmd const& lhs, AddClauseCmd const& rhs) noexcept -> bool
+{
+  return !(lhs == rhs);
+}
+
+auto operator<<(std::ostream& stream, AddClauseCmd const& cmd) -> std::ostream&
+{
+  stream << "(AddClauseCmd";
+  for (CNFLit lit : cmd.clauseToAdd) {
+    stream << " " << std::to_string(lit);
+  }
+  stream << ")";
+  return stream;
+}
+
+auto operator==(AssumeCmd const& lhs, AssumeCmd const& rhs) noexcept -> bool
+{
+  return &lhs == &rhs || lhs.assumptions == rhs.assumptions;
+}
+
+auto operator!=(AssumeCmd const& lhs, AssumeCmd const& rhs) noexcept -> bool
+{
+  return !(lhs == rhs);
+}
+
+auto operator<<(std::ostream& stream, AssumeCmd const& cmd) -> std::ostream&
+{
+  stream << "(AssumeCmd";
+  for (CNFLit lit : cmd.assumptions) {
+    stream << " " << std::to_string(lit);
+  }
+  stream << ")";
+  return stream;
+}
+
+auto operator==(SolveCmd const& lhs, SolveCmd const& rhs) noexcept -> bool
+{
+  return &lhs == &rhs || lhs.expectedResult == rhs.expectedResult;
+}
+
+auto operator!=(SolveCmd const& lhs, SolveCmd const& rhs) noexcept -> bool
+{
+  return !(lhs == rhs);
+}
+
+auto operator<<(std::ostream& stream, SolveCmd const& cmd) -> std::ostream&
+{
+  stream << "(SolveCmd ";
+  if (cmd.expectedResult.has_value()) {
+    stream << ((*cmd.expectedResult) ? "10" : "20");
+  }
+  else {
+    stream << "<undetermined>";
+  }
+  stream << ")";
+  return stream;
+}
+
+auto operator<<(std::ostream& stream, FuzzCmd const& cmd) -> std::ostream&
+{
+  std::visit([&stream](auto&& x) { stream << x; }, cmd);
+  return stream;
+}
+
+namespace {
+auto applyCmd(IPASIRSolver& solver, AddClauseCmd const& cmd) -> bool
+{
+  solver.addClause(cmd.clauseToAdd);
+  return true;
+}
+
+auto applyCmd(IPASIRSolver& solver, AssumeCmd const& cmd) -> bool
+{
+  solver.assume(cmd.assumptions);
+  return true;
+}
+
+auto applyCmd(IPASIRSolver& solver, SolveCmd const& cmd) -> bool
+{
+  int result = solver.solve();
+
+  if (cmd.expectedResult.has_value()) {
+    bool const isSat = (result == 10);
+    return *(cmd.expectedResult) == isSat;
+  }
+  return true;
+}
+}
+
+auto applyTrace(FuzzTrace const& trace, IPASIRSolver& target) -> std::optional<size_t>
+{
+  size_t index = 0;
+  bool succeded = true;
+
+  for (FuzzCmd const& cmd : trace) {
+    std::visit([&target, &succeded](auto&& x) { succeded = applyCmd(target, x); }, cmd);
+    if (!succeded) {
+      break;
+    }
+    ++index;
+  }
+
+  return succeded ? std::nullopt : std::make_optional(index);
+}
 
 namespace {
 auto toString(std::string const& solverVarName, AddClauseCmd const& cmd) -> std::string

@@ -25,6 +25,7 @@
 */
 
 #include <libincmonk/FuzzTrace.h>
+#include <libincmonk/IPASIRSolver.h>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -86,5 +87,147 @@ INSTANTIATE_TEST_CASE_P(, FuzzTraceTests_toCFunctionBody,
   )
 );
 // clang-format on
+
+
+class RecordingIPASIRSolver : public IPASIRSolver {
+public:
+  RecordingIPASIRSolver(std::vector<int> const& solveResults)
+  {
+    m_solveResults.assign(solveResults.rbegin(), solveResults.rend());
+  }
+
+  void addClause(CNFClause const& clause) override
+  {
+    m_recordedTrace.push_back(AddClauseCmd{clause});
+  }
+
+  void assume(std::vector<CNFLit> const& assumptions) override
+  {
+    m_recordedTrace.push_back(AssumeCmd{assumptions});
+  }
+
+  auto solve() -> int override
+  {
+    assert(!m_solveResults.empty());
+    int const result = m_solveResults.back();
+    m_solveResults.pop_back();
+
+    std::optional<bool> traceResult;
+    if (result > 0) {
+      traceResult = (result == 10);
+    }
+
+    m_recordedTrace.push_back(SolveCmd{traceResult});
+    return result;
+  }
+
+  virtual void configure(uint64_t) override { m_calledConfigure = true; }
+
+  auto getTrace() const noexcept -> FuzzTrace const& { return m_recordedTrace; }
+
+  auto hasConfigureBeenCalled() const noexcept -> bool { return m_calledConfigure; }
+
+private:
+  std::vector<int> m_solveResults;
+  FuzzTrace m_recordedTrace;
+  bool m_calledConfigure = false;
+};
+
+
+class FuzzTraceTests_applyTrace : public ::testing::TestWithParam<FuzzTrace> {
+public:
+  virtual ~FuzzTraceTests_applyTrace() = default;
+};
+
+namespace {
+std::vector<int> getSolveResults(FuzzTrace const& trace)
+{
+  std::vector<int> result;
+  for (FuzzCmd const& cmd : trace) {
+    if (SolveCmd const* solveCmd = std::get_if<SolveCmd>(&cmd); solveCmd != nullptr) {
+      if (solveCmd->expectedResult.has_value()) {
+        result.push_back(*(solveCmd->expectedResult) ? 10 : 20);
+      }
+      else {
+        result.push_back(0);
+      }
+    }
+  }
+  return result;
+}
+}
+
+TEST_P(FuzzTraceTests_applyTrace, TestSuite_withoutFailure)
+{
+  FuzzTrace input = GetParam();
+  RecordingIPASIRSolver recorder{getSolveResults(input)};
+  std::optional<size_t> resultIndex = applyTrace(input, recorder);
+
+  EXPECT_FALSE(resultIndex.has_value());
+  EXPECT_FALSE(recorder.hasConfigureBeenCalled());
+  EXPECT_THAT(recorder.getTrace(), ::testing::Eq(input));
+}
+
+// clang-format off
+INSTANTIATE_TEST_CASE_P(, FuzzTraceTests_applyTrace,
+  ::testing::Values(
+    FuzzTrace{},
+    FuzzTrace{AddClauseCmd{}},
+    FuzzTrace{AddClauseCmd{{1, -2, -3}}},
+    FuzzTrace{AssumeCmd{{1, -2, -3}}},
+    FuzzTrace{SolveCmd{}},
+    FuzzTrace{SolveCmd{false}},
+    FuzzTrace{SolveCmd{true}},
+    FuzzTrace{
+        AddClauseCmd{{1, -2}},
+        AddClauseCmd{{-2, 4}},
+        AssumeCmd{{1}},
+        SolveCmd{true}
+    },
+    FuzzTrace{
+        AddClauseCmd{{1, -2}},
+        AddClauseCmd{{-2, 4}},
+        AssumeCmd{{1}},
+        SolveCmd{true},
+        SolveCmd{true},
+        AddClauseCmd{{2}},
+        AddClauseCmd{{-4}},
+        SolveCmd{false}
+    }
+  )
+);
+// clang-format on
+
+TEST_F(FuzzTraceTests_applyTrace, WhenSolvingFails_ThenIndexOfFailingCmdIsReturned)
+{
+  // clang-format off
+  FuzzTrace input {
+    AddClauseCmd{{1, -2}},
+    AddClauseCmd{{-2, 4}},
+    AssumeCmd{{1}},
+    SolveCmd{true},
+    SolveCmd{true},
+    AddClauseCmd{{2}},
+    AddClauseCmd{{-4}},
+    SolveCmd{false}
+  };
+  // clang-format on
+
+  std::vector<int> solveResults{10, 20, 20};
+
+  RecordingIPASIRSolver recorder{solveResults};
+  std::optional<size_t> resultIndex = applyTrace(input, recorder);
+
+  ASSERT_TRUE(resultIndex.has_value());
+  EXPECT_THAT(*resultIndex, ::testing::Eq(4));
+
+  EXPECT_FALSE(recorder.hasConfigureBeenCalled());
+
+  FuzzTrace expectedTrace{input.begin(), input.begin() + 4};
+  expectedTrace.push_back(SolveCmd{false});
+
+  EXPECT_THAT(recorder.getTrace(), ::testing::Eq(expectedTrace));
+}
+
 
 }
