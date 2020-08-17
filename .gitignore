@@ -3,3 +3,4 @@
 .DS_Store
 CMakeLists.txt.user
 .vscode
+build
