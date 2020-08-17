@@ -27,6 +27,8 @@
 #include <libincmonk/FuzzTrace.h>
 #include <libincmonk/IPASIRSolver.h>
 
+#include "FileUtils.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <utility>
@@ -229,5 +231,102 @@ TEST_F(FuzzTraceTests_applyTrace, WhenSolvingFails_ThenIndexOfFailingCmdIsReturn
   EXPECT_THAT(recorder.getTrace(), ::testing::Eq(expectedTrace));
 }
 
+class FuzzTraceTests_loadStoreTrace
+  : public ::testing::TestWithParam<std::tuple<FuzzTrace, std::vector<uint32_t>>> {
+public:
+  virtual ~FuzzTraceTests_loadStoreTrace() = default;
+};
 
+TEST_P(FuzzTraceTests_loadStoreTrace, TestSuite_store)
+{
+  PathWithDeleter tempFile = createTempFile();
+  FuzzTrace input = std::get<0>(GetParam());
+
+  storeTrace(input, tempFile.getPath());
+
+  auto maybeResult = slurpUInt32File(tempFile.getPath());
+  ASSERT_TRUE(maybeResult.has_value());
+
+  std::vector<std::uint32_t> result = *maybeResult;
+  std::vector<std::uint32_t> expected = std::get<1>(GetParam());
+  EXPECT_THAT(result, ::testing::Eq(expected));
+}
+
+/*TEST_P(FuzzTraceTests_loadStoreTrace, TestSuite_load)
+{
+  PathWithDeleter tempFile = createTempFile();
+  std::vector<std::uint32_t> input = std::get<1>(GetParam());
+  
+  writeUInt32VecToFile(input, tempFile.getPath());
+
+  FuzzTrace expected = std::get<0>(GetParam());
+  FuzzTrace result = loadTrace(tempFile.getPath());
+
+  EXPECT_THAT(result, ::testing::Eq(expected));
+}*/
+
+
+namespace {
+constexpr static uint32_t magicCookie = 0xABCD0000;
+
+}
+
+// clang-format off
+INSTANTIATE_TEST_CASE_P(, FuzzTraceTests_loadStoreTrace,
+  ::testing::Values(
+    std::make_tuple(FuzzTrace{}, std::vector<uint32_t>{magicCookie}),
+
+    std::make_tuple(
+      FuzzTrace{AddClauseCmd{{1, -2}}},
+      std::vector<uint32_t>{magicCookie,
+        0x01000002, 2, 5
+      }
+    ),
+
+    std::make_tuple(
+      FuzzTrace{AssumeCmd{{1, -2, 10, -11}}},
+      std::vector<uint32_t>{magicCookie,
+        0x02000004, 2, 5, 20, 23
+      }
+    ),
+
+    std::make_tuple(
+      FuzzTrace{AssumeCmd{{1, -2, 10, -11}}},
+      std::vector<uint32_t>{magicCookie,
+        0x02000004, 2, 5, 20, 23
+      }
+    ),
+
+    std::make_tuple(FuzzTrace{SolveCmd{}}, std::vector<uint32_t>{magicCookie, 0x03000000}),
+    std::make_tuple(FuzzTrace{SolveCmd{true}}, std::vector<uint32_t>{magicCookie, 0x0300000A}),
+    std::make_tuple(FuzzTrace{SolveCmd{false}}, std::vector<uint32_t>{magicCookie, 0x03000014}),
+
+    std::make_tuple(
+      FuzzTrace{
+        AddClauseCmd{{1, -2}},
+        AddClauseCmd{{-2, 4}},
+        AssumeCmd{{1}},
+        SolveCmd{true},
+        SolveCmd{true},
+        AddClauseCmd{},
+        AddClauseCmd{{2}},
+        AddClauseCmd{{-4}},
+        SolveCmd{false}
+      },
+      std::vector<uint32_t>{
+        magicCookie,
+        0x01000002, 2, 5,
+        0x01000002, 5, 8,
+        0x02000001, 2,
+        0x0300000A,
+        0x0300000A,
+        0x01000000,
+        0x01000001, 4,
+        0x01000001, 9,
+        0x03000014
+      }
+    )
+  )
+);
+// clang-format on
 }

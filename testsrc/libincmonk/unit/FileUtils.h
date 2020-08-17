@@ -26,23 +26,35 @@
 
 #pragma once
 
-#include <string>
+#include <filesystem>
+#include <optional>
+#include <stdexcept>
 #include <vector>
 
-#include "CNF.h"
-
 namespace incmonk {
-
-class IPASIRSolver {
+class PathWithDeleter {
 public:
-  IPASIRSolver() = default;
-  virtual ~IPASIRSolver() = default;
+  PathWithDeleter(std::filesystem::path const& path);
+  auto getPath() const noexcept -> std::filesystem::path const&;
+  ~PathWithDeleter();
 
-  virtual void addClause(CNFClause const& clause) = 0;
-  virtual void assume(std::vector<CNFLit> const& assumptions) = 0;
-  virtual int solve() = 0;
+  PathWithDeleter(PathWithDeleter&& rhs);
+  auto operator=(PathWithDeleter&& rhs) -> PathWithDeleter&;
+  PathWithDeleter(PathWithDeleter const&) = delete;
+  auto operator=(PathWithDeleter const&) -> PathWithDeleter& = delete;
 
-  virtual void configure(uint64_t value) = 0;
+private:
+  std::filesystem::path m_path;
 };
 
+auto createTempFile() -> PathWithDeleter;
+
+class TestIOException : public std::runtime_error {
+public:
+  TestIOException(std::string const& what) : std::runtime_error(what) {}
+  virtual ~TestIOException() = default;
+};
+
+auto slurpUInt32File(std::filesystem::path const& path) -> std::optional<std::vector<uint32_t>>;
+void writeUInt32VecToFile(std::vector<uint32_t> const& data, std::filesystem::path const& path);
 }

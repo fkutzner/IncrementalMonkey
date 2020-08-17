@@ -27,6 +27,10 @@
 #include <libincmonk/FuzzTrace.h>
 #include <libincmonk/IPASIRSolver.h>
 
+#include <gsl/gsl_util>
+
+#include <cstdio>
+#include <fstream>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -185,5 +189,76 @@ auto toCFunctionBody(FuzzTrace const& trace, std::string const& argName) -> std:
     std::visit([&result, &argName](auto&& x) { result += toString(argName, x) + "\n"; }, cmd);
   }
   return result;
+}
+
+IOException::IOException(std::string const& what) : std::runtime_error(what) {}
+
+namespace {
+constexpr uint32_t magicCookie = 0xABCD0000; // 0xFFFF0000 + format version
+
+void appendToTraceBuffer(uint32_t value, std::vector<uint32_t>& buffer)
+{
+  // TODO: deal with endianness here
+  buffer.push_back(value);
+}
+
+uint32_t litAsBinary(CNFLit lit)
+{
+  uint32_t absVal = std::abs(lit) << 1;
+  absVal += (lit < 0 ? 1 : 0);
+  return absVal;
+}
+
+void appendLitsToTraceBuffer(std::vector<CNFLit> const& lits, std::vector<uint32_t>& buffer)
+{
+  for (CNFLit lit : lits) {
+    appendToTraceBuffer(litAsBinary(lit), buffer);
+  }
+}
+
+void storeCmd(AddClauseCmd const& cmd, std::vector<uint32_t>& buffer)
+{
+  uint32_t header = 1 << 24 | cmd.clauseToAdd.size();
+  appendToTraceBuffer(header, buffer);
+  appendLitsToTraceBuffer(cmd.clauseToAdd, buffer);
+}
+
+void storeCmd(AssumeCmd const& cmd, std::vector<uint32_t>& buffer)
+{
+  uint32_t header = 2 << 24 | cmd.assumptions.size();
+  appendToTraceBuffer(header, buffer);
+  appendLitsToTraceBuffer(cmd.assumptions, buffer);
+}
+
+void storeCmd(SolveCmd const& cmd, std::vector<uint32_t>& buffer)
+{
+  uint32_t header = 3 << 24;
+  if (cmd.expectedResult.has_value()) {
+    header |= ((*cmd.expectedResult) ? 10 : 20);
+  }
+  appendToTraceBuffer(header, buffer);
+}
+}
+
+void storeTrace(FuzzTrace const& trace, std::filesystem::path const& filename)
+{
+  std::vector<uint32_t> buffer;
+
+  appendToTraceBuffer(magicCookie, buffer);
+
+  for (FuzzCmd const& cmd : trace) {
+    std::visit([&buffer](auto&& x) { storeCmd(x, buffer); }, cmd);
+  }
+
+  FILE* output = fopen(filename.string().c_str(), "w");
+  if (output == nullptr) {
+    throw IOException("Could not open file " + filename.string());
+  }
+
+  auto closeOutput = gsl::finally([&output]() { fclose(output); });
+  size_t written = fwrite(buffer.data(), buffer.size() * sizeof(uint32_t), 1, output);
+  if (written != 1) {
+    throw IOException("I/O error while writing to " + filename.string());
+  }
 }
 }

@@ -30,6 +30,9 @@
  * \brief IPASIR solver trace data structures and related apply/print/load/store functions
  */
 
+#pragma once
+
+#include <exception>
 #include <filesystem>
 #include <optional>
 #include <ostream>
@@ -117,6 +120,21 @@ auto applyTrace(FuzzTrace const& trace, IPASIRSolver& target) -> std::optional<s
 auto toCFunctionBody(FuzzTrace const& trace, std::string const& solverName) -> std::string;
 
 
+class IOException : public std::runtime_error {
+public:
+  IOException(std::string const& what);
+  virtual ~IOException() = default;
+};
+
+/**
+ * \brief Stores the given trace in a file
+ * 
+ * TODO: describe format
+ * 
+ * \throw IOException   on file I/O failures
+ */
 void storeTrace(FuzzTrace const& trace, std::filesystem::path const& filename);
+
+
 auto loadTrace(std::filesystem::path const& filename) -> FuzzTrace;
 }
