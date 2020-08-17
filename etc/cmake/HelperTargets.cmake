@@ -22,39 +22,18 @@
 # shall not be used in advertising or otherwise to promote the sale, use or
 # other dealings in this Software without prior written authorization.
 
-cmake_minimum_required(VERSION 3.12)
-cmake_policy(VERSION 3.12)
 
-project(IncrementalMonkey VERSION 0.2.0)
+file(GLOB_RECURSE SRC_SOURCE_FILES ${PROJECT_SOURCE_DIR}/lib/*.cpp ${PROJECT_SOURCE_DIR}/lib/*.h)
+file(GLOB_RECURSE TESTSRC_SOURCE_FILES ${PROJECT_SOURCE_DIR}/testsrc/*.cpp ${PROJECT_SOURCE_DIR}/testsrc/*.h)
+file(GLOB_RECURSE TOOLS_SOURCE_FILES ${PROJECT_SOURCE_DIR}/tools/*.cpp ${PROJECT_SOURCE_DIR}/tools/*.h)
+set(ALL_SOURCE_FILES ${SRC_SOURCE_FILES} ${TESTSRC_SOURCE_FILES} ${TOOLS_SOURCE_FILES})
 
-### NiceMake setup
-set(NM_CONF_GTEST_TAG="release-1.10.0")
-include(etc/cmake/nicemake/NiceMake.cmake)
+set(INCMONK_MAINTENANCE_TARGET_FOLDER "Maintenance Targets")
 
-### Language options
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED 17)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
-nm_enforce_lang_standard_adherence()
-nm_use_high_compiler_warning_level()
-
-
-### Build dependencies
-add_subdirectory(deps)
-
-
-## Build Incremental Monkey
-add_subdirectory(lib)
-add_subdirectory(tools)
-
-
-### Testing
-
-nm_add_gtest()
-enable_testing()
-add_subdirectory(testsrc)
-
-
-nm_add_doxygen()
-include(etc/cmake/HelperTargets.cmake)
+add_custom_target(
+        format-src
+        COMMAND clang-format
+        -i
+        ${ALL_SOURCE_FILES}
+)
+set_property(TARGET format-src PROPERTY FOLDER ${INCMONK_MAINTENANCE_TARGET_FOLDER})
