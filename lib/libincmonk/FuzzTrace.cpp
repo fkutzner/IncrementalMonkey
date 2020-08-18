@@ -198,7 +198,7 @@ auto toCFunctionBody(FuzzTrace::const_iterator first,
 IOException::IOException(std::string const& what) : std::runtime_error(what) {}
 
 namespace {
-constexpr uint32_t magicCookie = 0xABCD0000; // 0xFFFF0000 + format version
+constexpr uint32_t magicCookie = 0xF2950000; // 0xF2950000 + format version
 
 void appendToTraceBuffer(uint32_t value, std::vector<uint32_t>& buffer)
 {
