@@ -269,7 +269,7 @@ TEST_P(FuzzTraceTests_loadStoreTrace, TestSuite_loadCorrectlyFormattedFile)
 
 
 namespace {
-constexpr static uint32_t magicCookie = 0xABCD0000;
+constexpr static uint32_t magicCookie = 0xAFFE0000;
 
 }
 
