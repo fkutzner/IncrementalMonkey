@@ -1,5 +1,7 @@
 nm_add_library(libincmonk STATIC
   CNF.h
+  Fork.h
+  Fork.cpp
   FuzzTrace.cpp
   FuzzTrace.h
   FuzzTraceExec.cpp
