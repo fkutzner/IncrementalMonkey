@@ -45,7 +45,7 @@ TEST_P(FuzzTraceTests_toCFunctionBody, TestSuite)
 {
   FuzzTrace input = std::get<0>(GetParam());
   std::string expectedResult = std::get<1>(GetParam());
-  std::string result = toCFunctionBody(input, "solver");
+  std::string result = toCFunctionBody(input.begin(), input.end(), "solver");
 
   std::string const resultWithNewlines = result;
   result.erase(std::remove(result.begin(), result.end(), '\n'), result.end());
@@ -164,9 +164,9 @@ TEST_P(FuzzTraceTests_applyTrace, TestSuite_withoutFailure)
 {
   FuzzTrace input = GetParam();
   RecordingIPASIRSolver recorder{getSolveResults(input)};
-  std::optional<size_t> resultIndex = applyTrace(input, recorder);
+  auto resultIter = applyTrace(input.begin(), input.end(), recorder);
 
-  EXPECT_FALSE(resultIndex.has_value());
+  EXPECT_THAT(resultIter, ::testing::Eq(input.end()));
   EXPECT_FALSE(recorder.hasConfigureBeenCalled());
   EXPECT_THAT(recorder.getTrace(), ::testing::Eq(input));
 }
@@ -220,14 +220,14 @@ TEST_F(FuzzTraceTests_applyTrace, WhenSolvingFails_ThenIndexOfFailingCmdIsReturn
       IPASIRSolver::Result::SAT, IPASIRSolver::Result::UNSAT, IPASIRSolver::Result::UNSAT};
 
   RecordingIPASIRSolver recorder{solveResults};
-  std::optional<size_t> resultIndex = applyTrace(input, recorder);
+  auto resultIter = applyTrace(input.begin(), input.end(), recorder);
 
-  ASSERT_TRUE(resultIndex.has_value());
-  EXPECT_THAT(*resultIndex, ::testing::Eq(4));
+  ASSERT_THAT(resultIter, ::testing::Ne(input.end()));
+  EXPECT_THAT(std::distance(input.cbegin(), resultIter), ::testing::Eq(4));
 
   EXPECT_FALSE(recorder.hasConfigureBeenCalled());
 
-  FuzzTrace expectedTrace{input.begin(), input.begin() + 4};
+  FuzzTrace expectedTrace{input.cbegin(), resultIter};
   expectedTrace.push_back(SolveCmd{false});
 
   EXPECT_THAT(recorder.getTrace(), ::testing::Eq(expectedTrace));
@@ -244,7 +244,7 @@ TEST_P(FuzzTraceTests_loadStoreTrace, TestSuite_store)
   PathWithDeleter tempFile = createTempFile();
   FuzzTrace input = std::get<0>(GetParam());
 
-  storeTrace(input, tempFile.getPath());
+  storeTrace(input.begin(), input.end(), tempFile.getPath());
 
   auto maybeResult = slurpUInt32File(tempFile.getPath());
   ASSERT_TRUE(maybeResult.has_value());

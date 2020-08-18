@@ -132,20 +132,21 @@ auto applyCmd(IPASIRSolver& solver, SolveCmd const& cmd) -> bool
 }
 }
 
-auto applyTrace(FuzzTrace const& trace, IPASIRSolver& target) -> std::optional<size_t>
+auto applyTrace(FuzzTrace::const_iterator first,
+                FuzzTrace::const_iterator last,
+                IPASIRSolver& target) -> FuzzTrace::const_iterator
 {
-  size_t index = 0;
-  bool succeded = true;
+  FuzzTrace::const_iterator cmd = first;
 
-  for (FuzzCmd const& cmd : trace) {
-    std::visit([&target, &succeded](auto&& x) { succeded = applyCmd(target, x); }, cmd);
+  for (; cmd != last; ++cmd) {
+    bool succeded = true;
+    std::visit([&target, &succeded](auto&& x) { succeded = applyCmd(target, x); }, *cmd);
     if (!succeded) {
       break;
     }
-    ++index;
   }
 
-  return succeded ? std::nullopt : std::make_optional(index);
+  return cmd;
 }
 
 namespace {
@@ -183,11 +184,13 @@ auto toString(std::string const& solverVarName, SolveCmd const& cmd) -> std::str
 }
 }
 
-auto toCFunctionBody(FuzzTrace const& trace, std::string const& argName) -> std::string
+auto toCFunctionBody(FuzzTrace::const_iterator first,
+                     FuzzTrace::const_iterator last,
+                     std::string const& argName) -> std::string
 {
   std::string result;
-  for (FuzzCmd const& cmd : trace) {
-    std::visit([&result, &argName](auto&& x) { result += toString(argName, x) + "\n"; }, cmd);
+  for (FuzzTrace::const_iterator cmd = first; cmd != last; ++cmd) {
+    std::visit([&result, &argName](auto&& x) { result += toString(argName, x) + "\n"; }, *cmd);
   }
   return result;
 }
@@ -240,14 +243,16 @@ void storeCmd(SolveCmd const& cmd, std::vector<uint32_t>& buffer)
 }
 }
 
-void storeTrace(FuzzTrace const& trace, std::filesystem::path const& filename)
+void storeTrace(FuzzTrace::const_iterator first,
+                FuzzTrace::const_iterator last,
+                std::filesystem::path const& filename)
 {
   std::vector<uint32_t> buffer;
 
   appendToTraceBuffer(magicCookie, buffer);
 
-  for (FuzzCmd const& cmd : trace) {
-    std::visit([&buffer](auto&& x) { storeCmd(x, buffer); }, cmd);
+  for (FuzzTrace::const_iterator cmd = first; cmd != last; ++cmd) {
+    std::visit([&buffer](auto&& x) { storeCmd(x, buffer); }, *cmd);
   }
 
   FILE* output = fopen(filename.string().c_str(), "w");

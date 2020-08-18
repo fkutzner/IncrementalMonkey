@@ -98,11 +98,13 @@ using FuzzTrace = std::vector<FuzzCmd>;
  * \brief Applies the given trace to an IPASIR SAT solver, checking
  *   any expected SolveCmd results if specified.
  * 
- * \returns The index of the first SolveCmd within `trace` for which
- *   the SAT solver returned an unexpected result. Otherwise, nothing
- *   is returned.
+ * \returns Iterator to the first SolveCmd within [first, last) for which
+ *   the SAT solver returned an unexpected result. Otherwise, `last` is
+ *   returned.
  */
-auto applyTrace(FuzzTrace const& trace, IPASIRSolver& target) -> std::optional<size_t>;
+auto applyTrace(FuzzTrace::const_iterator first,
+                FuzzTrace::const_iterator last,
+                IPASIRSolver& target) -> FuzzTrace::const_iterator;
 
 
 /**
@@ -112,12 +114,15 @@ auto applyTrace(FuzzTrace const& trace, IPASIRSolver& target) -> std::optional<s
  * 
  * Usage example: generate regression tests for error traces.
  * 
- * \param trace       The trace to be translated
+ * \param first       The trace [first, last) to be translated
+ * \param last
  * \param solverName  The variable name of the IPASIR solver pointer (ie. the `void*` argument)
  * 
  * \returns           A newline-separated sequence of IPASIR function calls corresponding to `trace`
  */
-auto toCFunctionBody(FuzzTrace const& trace, std::string const& solverName) -> std::string;
+auto toCFunctionBody(FuzzTrace::const_iterator first,
+                     FuzzTrace::const_iterator last,
+                     std::string const& solverName) -> std::string;
 
 
 class IOException : public std::runtime_error {
@@ -133,7 +138,9 @@ public:
  * 
  * \throw IOException   on file I/O failures
  */
-void storeTrace(FuzzTrace const& trace, std::filesystem::path const& filename);
+void storeTrace(FuzzTrace::const_iterator first,
+                FuzzTrace::const_iterator last,
+                std::filesystem::path const& filename);
 
 
 /**
