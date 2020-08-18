@@ -32,6 +32,8 @@ namespace incmonk {
 namespace {
 class OracleCMS : public Oracle {
 public:
+  OracleCMS() {}
+
   void ensureSolverHasEnoughVars(CNFLit toAdd)
   {
     uint32_t var = std::abs(toAdd);
