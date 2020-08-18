@@ -26,46 +26,26 @@
 
 #pragma once
 
-#include <exception>
-#include <filesystem>
-#include <memory>
-#include <type_traits>
-#include <vector>
+#include <libincmonk/FuzzTrace.h>
+#include <libincmonk/IPASIRSolver.h>
 
-#include "CNF.h"
+#include <optional>
 
 namespace incmonk {
 
-class DSOLoadError : public std::runtime_error {
-public:
-  DSOLoadError(std::string const& what) : std::runtime_error(what) {}
-  virtual ~DSOLoadError() = default;
+struct TraceExecutionFailure {
+  enum class Reason { INCORRECT_RESULT, TIMEOUT };
+  Reason reason;
+  FuzzTrace::iterator solveCmd;
 };
 
-using IPASIRInitFn = std::add_pointer_t<void*()>;
-using IPASIRReleaseFn = std::add_pointer_t<void(void*)>;
-using IPASIRAddFn = std::add_pointer_t<void(void*, int)>;
-using IPASIRAssumeFn = std::add_pointer_t<void(void*, int)>;
-using IPASIRSolveFn = std::add_pointer_t<int(void*)>;
-using IPASIRValFn = std::add_pointer_t<int(void*, int)>;
-
-
-class IPASIRSolver {
-public:
-  IPASIRSolver() = default;
-  virtual ~IPASIRSolver() = default;
-
-  virtual void addClause(CNFClause const& clause) = 0;
-  virtual void assume(std::vector<CNFLit> const& assumptions) = 0;
-
-  enum class Result { SAT, UNSAT, UNKNOWN, ILLEGAL_RESULT };
-
-  virtual auto solve() -> Result = 0;
-  virtual auto getLastSolveResult() const noexcept -> Result = 0;
-
-  virtual void configure(uint64_t value) = 0;
-};
-
-auto createIPASIRSolver(std::filesystem::path const& pathToDSO) -> std::unique_ptr<IPASIRSolver>;
-
+/**
+ * \brief Executes the given trace `[start, stop)` on the solver under test, checking
+ *   the results with the test oracle.
+ * 
+ * \returns on failure: TraceExecutionFailure pointing to the failed solve command,
+ *   otherwise nothing. Intedeterminate results are counted as incorrect results.
+ */
+auto executeTrace(FuzzTrace::iterator start, FuzzTrace::iterator stop, IPASIRSolver& sut)
+    -> std::optional<TraceExecutionFailure>;
 }

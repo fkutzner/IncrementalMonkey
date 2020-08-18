@@ -2,6 +2,8 @@ nm_add_library(libincmonk STATIC
   CNF.h
   FuzzTrace.cpp
   FuzzTrace.h
+  FuzzTraceExec.cpp
+  FuzzTraceExec.h
   IPASIRSolver.cpp
   IPASIRSolver.h
   Oracle.h

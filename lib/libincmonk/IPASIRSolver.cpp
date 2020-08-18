@@ -81,7 +81,7 @@ public:
     }
   }
 
-  virtual void addClause(CNFClause const& clause)
+  void addClause(CNFClause const& clause) override
   {
     for (CNFLit lit : clause) {
       m_addFn(m_ipasirContext, lit);
@@ -89,31 +89,34 @@ public:
     m_addFn(m_ipasirContext, 0);
   }
 
-  virtual void assume(std::vector<CNFLit> const& assumptions)
+  void assume(std::vector<CNFLit> const& assumptions) override
   {
     for (CNFLit a : assumptions) {
       m_assumeFn(m_ipasirContext, a);
     }
   }
 
-  virtual auto solve() -> Result
+  auto solve() -> Result override
   {
     int result = m_solveFn(m_ipasirContext);
     if (result == 0) {
-      return Result::UNKNOWN;
+      m_lastResult = Result::UNKNOWN;
     }
     else if (result == 10) {
-      return Result::SAT;
+      m_lastResult = Result::SAT;
     }
     else if (result == 20) {
-      return Result::UNSAT;
+      m_lastResult = Result::UNSAT;
     }
     else {
-      return Result::ILLEGAL_RESULT;
+      m_lastResult = Result::ILLEGAL_RESULT;
     }
+    return m_lastResult;
   }
 
-  virtual void configure(uint64_t)
+  auto getLastSolveResult() const noexcept -> Result override { return m_lastResult; }
+
+  void configure(uint64_t) override
   {
     // Not implemented yet
   }
@@ -129,6 +132,8 @@ private:
   IPASIRAssumeFn m_assumeFn = nullptr;
   IPASIRSolveFn m_solveFn = nullptr;
   IPASIRValFn m_valFn = nullptr;
+
+  Result m_lastResult = Result::UNKNOWN;
 };
 }
 

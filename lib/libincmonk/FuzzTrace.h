@@ -99,8 +99,8 @@ using FuzzTrace = std::vector<FuzzCmd>;
  *   any expected SolveCmd results if specified.
  * 
  * \returns Iterator to the first SolveCmd within [first, last) for which
- *   the SAT solver returned an unexpected result. Otherwise, `last` is
- *   returned.
+ *   the SAT solver returned an unexpected result or the solve command has
+ *   no satisfibility info. Otherwise, `last` is returned.
  */
 auto applyTrace(FuzzTrace::const_iterator first,
                 FuzzTrace::const_iterator last,

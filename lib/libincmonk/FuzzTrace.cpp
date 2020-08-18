@@ -128,7 +128,7 @@ auto applyCmd(IPASIRSolver& solver, SolveCmd const& cmd) -> bool
     bool const isSat = (result == IPASIRSolver::Result::SAT);
     return *(cmd.expectedResult) == isSat;
   }
-  return true;
+  return false;
 }
 }
 

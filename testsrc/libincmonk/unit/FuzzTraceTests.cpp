@@ -120,8 +120,11 @@ public:
     }
 
     m_recordedTrace.push_back(SolveCmd{traceResult});
+    m_lastResult = result;
     return result;
   }
+
+  auto getLastSolveResult() const noexcept -> IPASIRSolver::Result override { return m_lastResult; }
 
   virtual void configure(uint64_t) override { m_calledConfigure = true; }
 
@@ -133,6 +136,7 @@ private:
   std::vector<IPASIRSolver::Result> m_solveResults;
   FuzzTrace m_recordedTrace;
   bool m_calledConfigure = false;
+  Result m_lastResult = Result::UNKNOWN;
 };
 
 
@@ -160,7 +164,7 @@ std::vector<IPASIRSolver::Result> getSolveResults(FuzzTrace const& trace)
 }
 }
 
-TEST_P(FuzzTraceTests_applyTrace, TestSuite_withoutFailure)
+TEST_P(FuzzTraceTests_applyTrace, TestSuite_withoutStop)
 {
   FuzzTrace input = GetParam();
   RecordingIPASIRSolver recorder{getSolveResults(input)};
@@ -178,7 +182,6 @@ INSTANTIATE_TEST_CASE_P(, FuzzTraceTests_applyTrace,
     FuzzTrace{AddClauseCmd{}},
     FuzzTrace{AddClauseCmd{{1, -2, -3}}},
     FuzzTrace{AssumeCmd{{1, -2, -3}}},
-    FuzzTrace{SolveCmd{}},
     FuzzTrace{SolveCmd{false}},
     FuzzTrace{SolveCmd{true}},
     FuzzTrace{
@@ -201,7 +204,7 @@ INSTANTIATE_TEST_CASE_P(, FuzzTraceTests_applyTrace,
 );
 // clang-format on
 
-TEST_F(FuzzTraceTests_applyTrace, WhenSolvingFails_ThenIndexOfFailingCmdIsReturned)
+TEST_F(FuzzTraceTests_applyTrace, WhenSolvingIsStopped_ThenIndexOfSolveCmdIsReturned)
 {
   // clang-format off
   FuzzTrace input {
@@ -211,23 +214,34 @@ TEST_F(FuzzTraceTests_applyTrace, WhenSolvingFails_ThenIndexOfFailingCmdIsReturn
     SolveCmd{true},
     SolveCmd{true},
     AddClauseCmd{{2}},
+    SolveCmd{},
     AddClauseCmd{{-4}},
     SolveCmd{false}
   };
   // clang-format on
 
-  std::vector<IPASIRSolver::Result> solveResults{
-      IPASIRSolver::Result::SAT, IPASIRSolver::Result::UNSAT, IPASIRSolver::Result::UNSAT};
+  std::vector<IPASIRSolver::Result> solveResults{IPASIRSolver::Result::SAT,
+                                                 IPASIRSolver::Result::UNSAT,
+                                                 IPASIRSolver::Result::UNSAT,
+                                                 IPASIRSolver::Result::UNSAT};
 
   RecordingIPASIRSolver recorder{solveResults};
   auto resultIter = applyTrace(input.begin(), input.end(), recorder);
 
+  // Check that the erroneous result on the second SolveCmd is recognized:
   ASSERT_THAT(resultIter, ::testing::Ne(input.end()));
   EXPECT_THAT(std::distance(input.cbegin(), resultIter), ::testing::Eq(4));
 
   EXPECT_FALSE(recorder.hasConfigureBeenCalled());
 
   FuzzTrace expectedTrace{input.cbegin(), resultIter};
+  expectedTrace.push_back(SolveCmd{false});
+
+  EXPECT_THAT(recorder.getTrace(), ::testing::Eq(expectedTrace));
+
+  // Check that the SolveCmd{} command is recognized:
+  auto resultIterForEmptySolveCmd = applyTrace(resultIter + 1, input.end(), recorder);
+  expectedTrace.push_back(AddClauseCmd{{2}});
   expectedTrace.push_back(SolveCmd{false});
 
   EXPECT_THAT(recorder.getTrace(), ::testing::Eq(expectedTrace));

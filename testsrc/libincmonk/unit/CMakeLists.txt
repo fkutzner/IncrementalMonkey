@@ -1,6 +1,7 @@
 nm_add_tool(incmonktests.libincmonk.unit
   FileUtils.cpp
   FileUtils.h
+  FuzzTraceExecTests.cpp
   FuzzTraceTests.cpp
   OracleTests.cpp
 )
