@@ -1,9 +1,6 @@
 [submodule "etc/cmake/nicemake"]
 	path = etc/cmake/nicemake
 	url = https://github.com/fkutzner/nicemake
-[submodule "deps/cnf-utils"]
-	path = deps/cnf-utils
-	url = https://github.com/fkutzner/cnf-utils
 [submodule "deps/GSL"]
 	path = deps/GSL
 	url = https://github.com/microsoft/GSL

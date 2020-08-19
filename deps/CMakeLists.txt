@@ -2,7 +2,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/deps)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/deps)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/deps)
 
-add_subdirectory(cnf-utils EXCLUDE_FROM_ALL)
 add_subdirectory(GSL EXCLUDE_FROM_ALL)
 
 add_library(deps_gsl INTERFACE)
