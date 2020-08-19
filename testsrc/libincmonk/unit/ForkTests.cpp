@@ -36,27 +36,38 @@ namespace incmonk {
 TEST(ForkTests, WhenFunctionExecutionSucceeds_ReturnValueIsPassedBack)
 {
   int expected = 12345;
-  uint64_t result = syncExecInFork([&expected]() { return expected; });
+  uint64_t result = syncExecInFork([&expected]() { return expected; }, EXIT_FAILURE);
   EXPECT_THAT(result, ::testing::Eq(expected));
 }
 
 TEST(ForkTests, WhenChildExitsPrematurely_ChildExecutionFailureIsThrown)
 {
-  EXPECT_THROW(syncExecInFork([]() -> uint64_t { exit(1); }), ChildExecutionFailure);
+  // The fork()ed process needs to return EXIT_FAILURE to ensure that
+  // no further tests are executed in the test suite.
+  EXPECT_THROW(syncExecInFork([]() -> uint64_t { exit(1); }, EXIT_FAILURE), ChildExecutionFailure);
 }
 
 TEST(ForkTests, WhenChildSegfaults_ChildExecutionFailureIsThrown)
 {
-  EXPECT_THROW(syncExecInFork([]() -> uint64_t {
-                 raise(SIGSEGV);
-                 return 0;
-               }),
+  EXPECT_THROW(syncExecInFork(
+                   []() -> uint64_t {
+                     raise(SIGSEGV);
+                     return 0;
+                   },
+                   EXIT_FAILURE),
                ChildExecutionFailure);
 }
 
 TEST(ForkTests, WhenFnThrows_ChildExecutionFailureIsThrown)
 {
-  EXPECT_THROW(syncExecInFork([]() -> uint64_t { throw 0; }), ChildExecutionFailure);
+  EXPECT_THROW(syncExecInFork(
+                   []() -> uint64_t {
+                     // keep gtest from catching the exception in the child process
+                     testing::GTEST_FLAG(catch_exceptions) = false;
+                     throw 0;
+                   },
+                   EXIT_FAILURE),
+               ChildExecutionFailure);
 }
 
 }

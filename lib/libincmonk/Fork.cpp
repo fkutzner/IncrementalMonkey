@@ -28,8 +28,13 @@
 #include <libincmonk/Fork.h>
 
 #include <array>
+#include <errno.h>
+#include <poll.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#include <iostream>
 
 namespace incmonk {
 namespace {
@@ -51,8 +56,19 @@ public:
   }
 
   int getReadFd() const noexcept { return m_pipeFd[0]; }
-
   int getWriteFd() const noexcept { return m_pipeFd[1]; }
+
+  bool hasData() const
+  {
+    pollfd fd{getReadFd(), /* events */ POLLIN, /* revents */ 0};
+    int const timeoutMillis = 10;
+    int numReadyFDs = poll(&fd, 1, timeoutMillis);
+    if (numReadyFDs < 0) {
+      std::cout << "poll failure" << std::endl;
+      throw std::runtime_error{"Child process communication failed"};
+    }
+    return numReadyFDs == 1;
+  }
 
 private:
   std::array<int, 2> m_pipeFd = {0, 0};
@@ -60,20 +76,47 @@ private:
 
 }
 
-auto syncExecInFork(std::function<uint64_t()> const& fn) -> uint64_t
+auto syncExecInFork(std::function<uint64_t()> const& fn, int childExitVal) -> uint64_t
 {
   Pipe comm;
   pid_t childPid = fork();
 
   if (childPid == 0) {
-    uint64_t result = fn();
+    uint64_t result = 0;
+    try {
+      result = fn();
+    }
+    catch (...) {
+      exit(EXIT_FAILURE);
+    }
     write(comm.getWriteFd(), &result, sizeof(uint64_t));
-    exit(0x42);
+    exit(childExitVal);
   }
   else if (childPid > 0) {
-    int statloc = 0;
-    waitpid(childPid, &statloc, 0);
-    if (WIFEXITED(statloc) == 0 || WEXITSTATUS(statloc) != 0x42) {
+    // Wait for the child process to finish
+    while (true) {
+      int statloc = 0;
+      pid_t waitResult = waitpid(childPid, &statloc, 0);
+      assert(errno != EINVAL);
+
+      if (waitResult != -1) {
+        if (WIFEXITED(statloc) == 0) {
+          throw ChildExecutionFailure{};
+        }
+        break;
+      }
+
+      if (errno == ECHILD) {
+        // the child exited before the waitpid call
+        break;
+      }
+      assert(errno == EINTR);
+      // waitpid has been interrupted by a signal, wait some more
+    }
+
+    // The child is dead by now. Fetch the result from the pipe:
+    if (!comm.hasData()) {
+      // The child process didn't get around to write to the pipe
       throw ChildExecutionFailure{};
     }
 

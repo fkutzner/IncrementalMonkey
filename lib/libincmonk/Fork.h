@@ -38,6 +38,8 @@ class ChildExecutionFailure {
  * \brief Synchronously executes the given function in a child process.
  * 
  * \param fn    A function that will be invoked in the child process.
+ * \param childExitVal  The exit() value returned from the child process
+ *   on successful termination.
  * 
  * \returns The return value of `fn`'s execution in the child process. 
  * 
@@ -50,5 +52,5 @@ class ChildExecutionFailure {
  * 
  * \throws std::runtime_error when the child process setup failed.
  */
-auto syncExecInFork(std::function<uint64_t()> const& fn) -> uint64_t;
+auto syncExecInFork(std::function<uint64_t()> const& fn, int childExitVal) -> uint64_t;
 }
