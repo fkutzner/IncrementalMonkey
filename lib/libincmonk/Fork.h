@@ -26,8 +26,10 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <stdexcept>
 
 namespace incmonk {
@@ -40,6 +42,8 @@ class ChildExecutionFailure {
  * \param fn    A function that will be invoked in the child process.
  * \param childExitVal  The exit() value returned from the child process
  *   on successful termination.
+ * \param timeout An optional timeout. If the child process did not complete
+ *   within this time limit, it is killed and nothing is returned.
  * 
  * \returns The return value of `fn`'s execution in the child process. 
  * 
@@ -52,5 +56,9 @@ class ChildExecutionFailure {
  * 
  * \throws std::runtime_error when the child process setup failed.
  */
-auto syncExecInFork(std::function<uint64_t()> const& fn, int childExitVal) -> uint64_t;
+auto syncExecInFork(std::function<uint64_t()> const& fn,
+                    int childExitVal,
+                    std::optional<std::chrono::milliseconds> timeout = std::nullopt)
+    -> std::optional<uint64_t>;
+
 }

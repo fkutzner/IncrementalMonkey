@@ -31,8 +31,11 @@
 #include <errno.h>
 #include <poll.h>
 #include <signal.h>
+#include <sys/select.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#include <fcntl.h>
 
 #include <iostream>
 
@@ -74,45 +77,113 @@ private:
   std::array<int, 2> m_pipeFd = {0, 0};
 };
 
+void childProcess(std::function<uint64_t()> const& fn, int childExitVal, Pipe const& comm)
+{
+  uint64_t result = 0;
+  try {
+    result = fn();
+  }
+  catch (...) {
+    exit(EXIT_FAILURE);
+  }
+  write(comm.getWriteFd(), &result, sizeof(uint64_t));
+  exit(childExitVal);
 }
 
-auto syncExecInFork(std::function<uint64_t()> const& fn, int childExitVal) -> uint64_t
+void sigchildHandler(int sig)
+{
+  // this is just used to wake from select()
+}
+
+auto exceedsReadTimeout(Pipe const& comm, std::optional<std::chrono::milliseconds> timeout) -> bool
+{
+  // TODO: set this up only once
+  struct sigaction signalAction;
+  memset(&signalAction, 0, sizeof(sa));
+  signalAction.sa_handler = sigchildHandler;
+  sigaction(SIGCHLD, &signalAction, NULL);
+
+  fd_set set;
+  FD_ZERO(&set);
+  FD_SET(comm.getReadFd(), &set);
+
+  struct timeval selectTimeout;
+  selectTimeout.tv_sec = timeout->count() / 1000;
+  selectTimeout.tv_usec = (timeout->count() % 1000) * 1000;
+
+  int rv = select(comm.getReadFd() + 1, &set, NULL, NULL, &selectTimeout);
+  // TODO: if rv is -1: check if the child still exists & if the timeout has not been reached yet
+
+  return rv == 0;
+}
+
+void waitOnProcessAndThrowIfExitedWithError(pid_t childPid)
+{
+  while (true) {
+    int statloc = 0;
+    pid_t waitResult = waitpid(childPid, &statloc, 0);
+    assert(errno != EINVAL);
+
+    if (waitResult != -1) {
+      if (WIFEXITED(statloc) == 0) {
+        // The child did not exit regularly ~> suppose a crash
+        throw ChildExecutionFailure{};
+      }
+      return;
+    }
+
+    if (errno == ECHILD) {
+      // the child exited before the waitpid call
+      return;
+    }
+    assert(errno == EINTR);
+    // waitpid has been interrupted by a signal, wait some more
+  }
+}
+
+void killChildProcess(pid_t pid)
+{
+  kill(pid, SIGKILL);
+  int statloc = 0;
+
+  while (waitpid(pid, &statloc, 0) == -1) {
+    if (errno == ECHILD) {
+      break;
+    }
+  };
+}
+
+auto readUInt64OrThrow(int fd)
+{
+  uint64_t result = 0;
+  std::size_t numBytesRead = read(comm.getReadFd(), &result, sizeof(uint64_t));
+  if (numBytesRead != sizeof(uint64_t)) {
+    throw ChildExecutionFailure{};
+  }
+  return result;
+}
+
+}
+
+
+auto syncExecInFork(std::function<uint64_t()> const& fn,
+                    int childExitVal,
+                    std::optional<std::chrono::milliseconds> timeout) -> std::optional<uint64_t>
 {
   Pipe comm;
   pid_t childPid = fork();
 
   if (childPid == 0) {
-    uint64_t result = 0;
-    try {
-      result = fn();
-    }
-    catch (...) {
-      exit(EXIT_FAILURE);
-    }
-    write(comm.getWriteFd(), &result, sizeof(uint64_t));
-    exit(childExitVal);
+    childProcess(fn, childExitVal, comm);
   }
   else if (childPid > 0) {
-    // Wait for the child process to finish
-    while (true) {
-      int statloc = 0;
-      pid_t waitResult = waitpid(childPid, &statloc, 0);
-      assert(errno != EINVAL);
-
-      if (waitResult != -1) {
-        if (WIFEXITED(statloc) == 0) {
-          throw ChildExecutionFailure{};
-        }
-        break;
-      }
-
-      if (errno == ECHILD) {
-        // the child exited before the waitpid call
-        break;
-      }
-      assert(errno == EINTR);
-      // waitpid has been interrupted by a signal, wait some more
+    if (timeout.has_value() && exceedsReadTimeout(comm, *timeout)) {
+      killChildProcess(childPid);
+      return std::nullopt;
     }
+
+    // Needed even if the process has already been killed, to avoid zombie processes:
+    waitOnProcessAndThrowIfExitedWithError(childPid);
 
     // The child is dead by now. Fetch the result from the pipe:
     if (!comm.hasData()) {
@@ -120,12 +191,7 @@ auto syncExecInFork(std::function<uint64_t()> const& fn, int childExitVal) -> ui
       throw ChildExecutionFailure{};
     }
 
-    uint64_t result = 0;
-    std::size_t numBytesRead = read(comm.getReadFd(), &result, sizeof(uint64_t));
-    if (numBytesRead != sizeof(uint64_t)) {
-      throw ChildExecutionFailure{};
-    }
-    return result;
+    return readUInt64OrThrow(comm.getReadFd());
   }
   else {
     throw std::runtime_error{"Child process creation failed"};
