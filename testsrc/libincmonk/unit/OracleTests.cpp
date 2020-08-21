@@ -76,7 +76,7 @@ TEST_P(OracleTests_resolveSolveCmds, solveWithMultipleInvocations)
 }
 
 // clang-format off
-INSTANTIATE_TEST_CASE_P(, OracleTests_resolveSolveCmds,
+INSTANTIATE_TEST_SUITE_P(, OracleTests_resolveSolveCmds,
   ::testing::Values (
     std::make_tuple(FuzzTrace{}, FuzzTrace{}),
 

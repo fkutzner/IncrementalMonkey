@@ -28,7 +28,7 @@ cmake_policy(VERSION 3.12)
 project(IncrementalMonkey VERSION 0.2.0)
 
 ### NiceMake setup
-set(NM_CONF_GTEST_TAG="release-1.10.0")
+set(NM_CONF_GTEST_TAG "release-1.10.0")
 include(etc/cmake/nicemake/NiceMake.cmake)
 
 ### Language options

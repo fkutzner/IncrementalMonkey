@@ -123,7 +123,7 @@ TEST_P(FuzzTraceExecTests_executeTrace, TestSuite)
 using IRVec = std::vector<IPASIRSolver::Result>;
 
 // clang-format off
-INSTANTIATE_TEST_CASE_P(, FuzzTraceExecTests_executeTrace,
+INSTANTIATE_TEST_SUITE_P(, FuzzTraceExecTests_executeTrace,
   ::testing::Values (
     std::make_tuple(FuzzTrace{}, IRVec{}, std::nullopt, std::nullopt),
     std::make_tuple(FuzzTrace{AddClauseCmd{{1, 2}}}, IRVec{}, std::nullopt, std::nullopt),

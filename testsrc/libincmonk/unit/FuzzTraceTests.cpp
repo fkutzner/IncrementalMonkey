@@ -56,7 +56,7 @@ TEST_P(FuzzTraceTests_toCFunctionBody, TestSuite)
 }
 
 // clang-format off
-INSTANTIATE_TEST_CASE_P(, FuzzTraceTests_toCFunctionBody,
+INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_toCFunctionBody,
   ::testing::Values(
     std::make_tuple(FuzzTrace{}, ""),
 
@@ -176,7 +176,7 @@ TEST_P(FuzzTraceTests_applyTrace, TestSuite_withoutStop)
 }
 
 // clang-format off
-INSTANTIATE_TEST_CASE_P(, FuzzTraceTests_applyTrace,
+INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_applyTrace,
   ::testing::Values(
     FuzzTrace{},
     FuzzTrace{AddClauseCmd{}},
@@ -288,7 +288,7 @@ constexpr static uint32_t magicCookie = 0xF2950000;
 }
 
 // clang-format off
-INSTANTIATE_TEST_CASE_P(, FuzzTraceTests_loadStoreTrace,
+INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_loadStoreTrace,
   ::testing::Values(
     std::make_tuple(FuzzTrace{}, std::vector<uint32_t>{magicCookie}),
 
