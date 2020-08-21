@@ -26,6 +26,7 @@
 
 
 #include <libincmonk/Fork.h>
+#include <libincmonk/Stopwatch.h>
 
 #include <array>
 #include <errno.h>
@@ -35,9 +36,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <fcntl.h>
-
-#include <iostream>
+#include <gsl/gsl_util>
 
 namespace incmonk {
 namespace {
@@ -67,7 +66,6 @@ public:
     int const timeoutMillis = 10;
     int numReadyFDs = poll(&fd, 1, timeoutMillis);
     if (numReadyFDs < 0) {
-      std::cout << "poll failure" << std::endl;
       throw std::runtime_error{"Child process communication failed"};
     }
     return numReadyFDs == 1;
@@ -77,7 +75,8 @@ private:
   std::array<int, 2> m_pipeFd = {0, 0};
 };
 
-void childProcess(std::function<uint64_t()> const& fn, int childExitVal, Pipe const& comm)
+__attribute__((noreturn)) void
+childProcess(std::function<uint64_t()> const& fn, int childExitVal, Pipe const& comm)
 {
   uint64_t result = 0;
   try {
@@ -90,16 +89,76 @@ void childProcess(std::function<uint64_t()> const& fn, int childExitVal, Pipe co
   exit(childExitVal);
 }
 
-void sigchildHandler(int sig)
+void sigchildHandler(int)
 {
   // this is just used to wake from select()
 }
 
-auto exceedsReadTimeout(Pipe const& comm, std::optional<std::chrono::milliseconds> timeout) -> bool
+class ChildProcessState {
+public:
+  explicit ChildProcessState(pid_t pid) : m_pid{pid} {}
+
+  auto isAlive() -> bool
+  {
+    if (m_reaped) {
+      return false;
+    }
+
+    int statloc = 0;
+    pid_t waitResult = waitpid(m_pid, &statloc, WNOHANG);
+    if (waitResult != -1) {
+      m_reaped = true;
+      m_exitedWithError = (WIFEXITED(statloc) == 0);
+      return false;
+    }
+    return true;
+  }
+
+  void waitOnProcessAndThrowIfExitedWithError()
+  {
+    if (m_reaped) {
+      if (m_exitedWithError) {
+        throw ChildExecutionFailure{};
+      }
+      return;
+    }
+
+    gsl::final_action setReaped{[this]() { m_reaped = true; }};
+
+    while (true) {
+      int statloc = 0;
+      pid_t waitResult = waitpid(m_pid, &statloc, 0);
+      assert(errno != EINVAL);
+
+      if (waitResult != -1) {
+        if (WIFEXITED(statloc) == 0) {
+          // The child did not exit regularly ~> suppose a crash
+          throw ChildExecutionFailure{};
+        }
+        return;
+      }
+
+      if (errno == ECHILD) {
+        // the child exited before the waitpid call
+        return;
+      }
+      assert(errno == EINTR);
+      // waitpid has been interrupted by a signal, wait some more
+    }
+  }
+
+private:
+  pid_t m_pid;
+  bool m_reaped = false;
+  bool m_exitedWithError = false;
+};
+
+auto exceedsReadTimeout(Pipe const& comm,
+                        std::chrono::milliseconds timeout,
+                        ChildProcessState& childProc) -> bool
 {
-  // TODO: set this up only once
   struct sigaction signalAction;
-  memset(&signalAction, 0, sizeof(sa));
+  memset(&signalAction, 0, sizeof(signalAction));
   signalAction.sa_handler = sigchildHandler;
   sigaction(SIGCHLD, &signalAction, NULL);
 
@@ -108,38 +167,36 @@ auto exceedsReadTimeout(Pipe const& comm, std::optional<std::chrono::millisecond
   FD_SET(comm.getReadFd(), &set);
 
   struct timeval selectTimeout;
-  selectTimeout.tv_sec = timeout->count() / 1000;
-  selectTimeout.tv_usec = (timeout->count() % 1000) * 1000;
+  selectTimeout.tv_sec = timeout.count() / 1000;
+  selectTimeout.tv_usec = (timeout.count() % 1000) * 1000;
 
+  Stopwatch stopwatch;
   int rv = select(comm.getReadFd() + 1, &set, NULL, NULL, &selectTimeout);
-  // TODO: if rv is -1: check if the child still exists & if the timeout has not been reached yet
+  while (rv == -1) {
+    assert(errno != EBADF);
+
+    if (errno == EINVAL) {
+      throw std::runtime_error{"Child process creation failed"};
+    }
+
+    // errno is either EAGAIN or EINTR ~> maybe try again
+    if (!childProc.isAlive()) {
+      return false;
+    }
+
+    auto elapsedTime = stopwatch.getElapsedTime<std::chrono::milliseconds>();
+    if (elapsedTime >= timeout) {
+      return true;
+    }
+    auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(timeout - elapsedTime);
+    selectTimeout.tv_sec = remaining.count() / 1000000;
+    selectTimeout.tv_usec = remaining.count() % 1000000;
+    rv = select(comm.getReadFd() + 1, &set, NULL, NULL, &selectTimeout);
+  }
 
   return rv == 0;
 }
 
-void waitOnProcessAndThrowIfExitedWithError(pid_t childPid)
-{
-  while (true) {
-    int statloc = 0;
-    pid_t waitResult = waitpid(childPid, &statloc, 0);
-    assert(errno != EINVAL);
-
-    if (waitResult != -1) {
-      if (WIFEXITED(statloc) == 0) {
-        // The child did not exit regularly ~> suppose a crash
-        throw ChildExecutionFailure{};
-      }
-      return;
-    }
-
-    if (errno == ECHILD) {
-      // the child exited before the waitpid call
-      return;
-    }
-    assert(errno == EINTR);
-    // waitpid has been interrupted by a signal, wait some more
-  }
-}
 
 void killChildProcess(pid_t pid)
 {
@@ -156,7 +213,7 @@ void killChildProcess(pid_t pid)
 auto readUInt64OrThrow(int fd)
 {
   uint64_t result = 0;
-  std::size_t numBytesRead = read(comm.getReadFd(), &result, sizeof(uint64_t));
+  std::size_t numBytesRead = read(fd, &result, sizeof(uint64_t));
   if (numBytesRead != sizeof(uint64_t)) {
     throw ChildExecutionFailure{};
   }
@@ -172,18 +229,19 @@ auto syncExecInFork(std::function<uint64_t()> const& fn,
 {
   Pipe comm;
   pid_t childPid = fork();
+  ChildProcessState childState{childPid};
 
   if (childPid == 0) {
     childProcess(fn, childExitVal, comm);
   }
   else if (childPid > 0) {
-    if (timeout.has_value() && exceedsReadTimeout(comm, *timeout)) {
+    if (timeout.has_value() && exceedsReadTimeout(comm, *timeout, childState)) {
       killChildProcess(childPid);
       return std::nullopt;
     }
 
     // Needed even if the process has already been killed, to avoid zombie processes:
-    waitOnProcessAndThrowIfExitedWithError(childPid);
+    childState.waitOnProcessAndThrowIfExitedWithError();
 
     // The child is dead by now. Fetch the result from the pipe:
     if (!comm.hasData()) {
