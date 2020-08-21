@@ -28,6 +28,7 @@
 
 #include <exception>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -36,12 +37,6 @@
 
 namespace incmonk {
 
-class DSOLoadError : public std::runtime_error {
-public:
-  DSOLoadError(std::string const& what) : std::runtime_error(what) {}
-  virtual ~DSOLoadError() = default;
-};
-
 using IPASIRInitFn = std::add_pointer_t<void*()>;
 using IPASIRReleaseFn = std::add_pointer_t<void(void*)>;
 using IPASIRAddFn = std::add_pointer_t<void(void*, int)>;
@@ -49,7 +44,46 @@ using IPASIRAssumeFn = std::add_pointer_t<void(void*, int)>;
 using IPASIRSolveFn = std::add_pointer_t<int(void*)>;
 using IPASIRValFn = std::add_pointer_t<int(void*, int)>;
 
+class DSOLoadError : public std::runtime_error {
+public:
+  DSOLoadError(std::string const& what) : std::runtime_error(what) {}
+  virtual ~DSOLoadError() = default;
+};
 
+
+/**
+ * \brief Copyable and movable IPASIR solver DSO handle.
+ * 
+ * This functionality is kept separate from the IPASIR wrapper
+ * implementation itself to avoid expensive `dlopen()` calls when
+ * obtaining new solver instances.
+ */
+class IPASIRSolverDSO final {
+public:
+  /**
+   * \brief Constructs the IPASIR DSO handle.
+   * 
+   * \path Path to the IPASIR DSO.
+   * \throws DSOLoadError when loading the DSO failed.
+   */
+  explicit IPASIRSolverDSO(std::filesystem::path const& path);
+
+private:
+  std::shared_ptr<void> m_dsoContext;
+
+public:
+  IPASIRInitFn const initFn = nullptr;
+  IPASIRReleaseFn const releaseFn = nullptr;
+  IPASIRAddFn const addFn = nullptr;
+  IPASIRAssumeFn const assumeFn = nullptr;
+  IPASIRSolveFn const solveFn = nullptr;
+  IPASIRValFn const valFn = nullptr;
+};
+
+
+/**
+ * \brief Wrapper interface for IPASIR SAT solvers
+ */
 class IPASIRSolver {
 public:
   IPASIRSolver() = default;
@@ -64,8 +98,10 @@ public:
   virtual auto getLastSolveResult() const noexcept -> Result = 0;
 
   virtual void configure(uint64_t value) = 0;
+
+private:
 };
 
-auto createIPASIRSolver(std::filesystem::path const& pathToDSO) -> std::unique_ptr<IPASIRSolver>;
+auto createIPASIRSolver(IPASIRSolverDSO const& dso) -> std::unique_ptr<IPASIRSolver>;
 
 }

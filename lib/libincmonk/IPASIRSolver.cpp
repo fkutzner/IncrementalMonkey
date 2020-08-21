@@ -28,9 +28,9 @@
 
 #include "CNF.h"
 
+#include <dlfcn.h>
 #include <filesystem>
 
-#include <dlfcn.h>
 
 namespace incmonk {
 namespace {
@@ -45,60 +45,50 @@ auto checkedGetFn(void* dso, std::string name) -> FnTy
   return reinterpret_cast<FnTy>(sym);
 }
 
+void* checkedOpenDSO(std::filesystem::path const& path)
+{
+  void* result = dlopen(path.string().c_str(), RTLD_LOCAL);
+  if (result == nullptr) {
+    throw DSOLoadError{"Could not open " + path.string()};
+  }
+  return result;
+}
+
 class IPASIRSolverImpl : public IPASIRSolver {
 
 public:
-  IPASIRSolverImpl(std::filesystem::path const& path)
+  IPASIRSolverImpl(IPASIRSolverDSO const& dso) : m_dso{dso}
   {
-    m_dsoContext = dlopen(path.string().c_str(), RTLD_LOCAL);
-    if (m_dsoContext == nullptr) {
-      throw DSOLoadError{"Could not open " + path.string()};
-    }
-
-    m_initFn = checkedGetFn<IPASIRInitFn>(m_dsoContext, "ipasir_init");
-    m_releaseFn = checkedGetFn<IPASIRReleaseFn>(m_dsoContext, "ipasir_release");
-    m_addFn = checkedGetFn<IPASIRAddFn>(m_dsoContext, "ipasir_add");
-    m_assumeFn = checkedGetFn<IPASIRAssumeFn>(m_dsoContext, "ipasir_assume");
-    m_solveFn = checkedGetFn<IPASIRSolveFn>(m_dsoContext, "ipasir_solve");
-    m_valFn = checkedGetFn<IPASIRValFn>(m_dsoContext, "ipasir_val");
-
-    m_ipasirContext = m_initFn();
-    if (m_ipasirContext == nullptr) {
-      throw DSOLoadError{"Could not initialize IPASIR"};
-    }
+    m_ipasirContext = m_dso.initFn();
+    // TODO: error handling when m_ipasircontext == nullptr
   }
 
   virtual ~IPASIRSolverImpl()
   {
     if (m_ipasirContext != nullptr) {
-      m_releaseFn(m_ipasirContext);
+      m_dso.releaseFn(m_ipasirContext);
       m_ipasirContext = nullptr;
-    }
-
-    if (m_dsoContext != nullptr) {
-      dlclose(m_dsoContext);
-      m_dsoContext = nullptr;
     }
   }
 
   void addClause(CNFClause const& clause) override
   {
     for (CNFLit lit : clause) {
-      m_addFn(m_ipasirContext, lit);
+      m_dso.addFn(m_ipasirContext, lit);
     }
-    m_addFn(m_ipasirContext, 0);
+    m_dso.addFn(m_ipasirContext, 0);
   }
 
   void assume(std::vector<CNFLit> const& assumptions) override
   {
     for (CNFLit a : assumptions) {
-      m_assumeFn(m_ipasirContext, a);
+      m_dso.assumeFn(m_ipasirContext, a);
     }
   }
 
   auto solve() -> Result override
   {
-    int result = m_solveFn(m_ipasirContext);
+    int result = m_dso.solveFn(m_ipasirContext);
     if (result == 0) {
       m_lastResult = Result::UNKNOWN;
     }
@@ -123,22 +113,25 @@ public:
 
 
 private:
-  void* m_dsoContext = nullptr;
+  IPASIRSolverDSO m_dso;
   void* m_ipasirContext = nullptr;
-
-  IPASIRInitFn m_initFn = nullptr;
-  IPASIRReleaseFn m_releaseFn = nullptr;
-  IPASIRAddFn m_addFn = nullptr;
-  IPASIRAssumeFn m_assumeFn = nullptr;
-  IPASIRSolveFn m_solveFn = nullptr;
-  IPASIRValFn m_valFn = nullptr;
-
   Result m_lastResult = Result::UNKNOWN;
 };
 }
 
-auto createIPASIRSolver(std::filesystem::path const& pathToDSO) -> std::unique_ptr<IPASIRSolver>
+IPASIRSolverDSO::IPASIRSolverDSO(std::filesystem::path const& path)
+  : m_dsoContext{checkedOpenDSO(path), [](void* dso) { dlclose(dso); }}
+  , initFn{checkedGetFn<IPASIRInitFn>(m_dsoContext.get(), "ipasir_init")}
+  , releaseFn{checkedGetFn<IPASIRReleaseFn>(m_dsoContext.get(), "ipasir_release")}
+  , addFn{checkedGetFn<IPASIRAddFn>(m_dsoContext.get(), "ipasir_add")}
+  , assumeFn{checkedGetFn<IPASIRAssumeFn>(m_dsoContext.get(), "ipasir_assume")}
+  , solveFn{checkedGetFn<IPASIRSolveFn>(m_dsoContext.get(), "ipasir_solve")}
+  , valFn{checkedGetFn<IPASIRValFn>(m_dsoContext.get(), "ipasir_val")}
 {
-  return std::make_unique<IPASIRSolverImpl>(pathToDSO);
+}
+
+auto createIPASIRSolver(IPASIRSolverDSO const& dso) -> std::unique_ptr<IPASIRSolver>
+{
+  return std::make_unique<IPASIRSolverImpl>(dso);
 }
 }
