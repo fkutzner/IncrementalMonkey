@@ -29,6 +29,10 @@
 #include <libincmonk/FuzzTrace.h>
 #include <libincmonk/Oracle.h>
 
+#include <filesystem>
+#include <iomanip>
+#include <sstream>
+
 namespace incmonk {
 
 namespace {
@@ -77,6 +81,8 @@ auto executeTrace(FuzzTrace::iterator start, FuzzTrace::iterator stop, IPASIRSol
     cursor = start + std::distance(FuzzTrace::const_iterator{start}, newCursor);
 
     if (cursor != stop) {
+      assert(std::get_if<SolveCmd>(&*cursor) != nullptr);
+
       Analysis analysis = analyzeResult(prevCursor, cursor, sut, *oracle);
       if (analysis.has_value()) {
         return TraceExecutionFailure{*analysis, cursor};
@@ -88,5 +94,37 @@ auto executeTrace(FuzzTrace::iterator start, FuzzTrace::iterator stop, IPASIRSol
   }
 
   return std::nullopt;
+}
+
+
+auto createTraceFilename(std::string const& fuzzerID, int run, TraceExecutionFailure::Reason kind)
+    -> std::filesystem::path
+{
+  std::stringstream formatter;
+  formatter << fuzzerID << "-" << std::setfill('0') << std::setw(6) << run;
+  if (kind == TraceExecutionFailure::Reason::INCORRECT_RESULT) {
+    formatter << "-incorrect.mtr";
+  }
+  else {
+    formatter << "-timeout.mtr";
+  }
+  return formatter.str();
+}
+
+auto executeTraceWithDump(FuzzTrace::iterator start,
+                          FuzzTrace::iterator stop,
+                          IPASIRSolver& target,
+                          std::string const& fuzzerID,
+                          uint32_t runID) -> std::optional<TraceExecutionFailure>
+{
+  auto failure = executeTrace(start, stop, target);
+
+  if (failure.has_value()) {
+    std::filesystem::path traceFilename = createTraceFilename(fuzzerID, runID, failure->reason);
+    auto iterBeyondFailingSolveCmd = ++(failure->solveCmd);
+    storeTrace(start, iterBeyondFailingSolveCmd, traceFilename);
+  }
+
+  return failure;
 }
 }

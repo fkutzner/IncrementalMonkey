@@ -48,6 +48,7 @@ private:
 };
 
 auto createTempFile() -> PathWithDeleter;
+auto createTempDir() -> PathWithDeleter;
 
 class TestIOException : public std::runtime_error {
 public:

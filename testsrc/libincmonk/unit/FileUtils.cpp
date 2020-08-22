@@ -31,6 +31,7 @@
 #include <gsl/gsl_util>
 
 #include <fstream>
+#include <iostream>
 #include <random>
 
 namespace fs = std::filesystem;
@@ -47,7 +48,11 @@ auto PathWithDeleter::getPath() const noexcept -> fs::path const&
 PathWithDeleter::~PathWithDeleter()
 {
   if (!m_path.empty()) {
-    fs::remove(m_path);
+    std::error_code ec;
+    fs::remove(m_path, ec);
+    if (ec) {
+      std::cerr << "Warning: could not remove " << m_path << "\n";
+    }
   }
 }
 
@@ -71,19 +76,33 @@ auto PathWithDeleter::operator=(PathWithDeleter&& rhs) -> PathWithDeleter&
 }
 
 
-auto createTempFile() -> PathWithDeleter
+namespace {
+auto createTempFilename(fs::path const& dir) -> fs::path
 {
   static std::mt19937 rng{32};
-  std::uniform_int_distribution<> numbers;
+  static std::uniform_int_distribution<> numbers;
 
-  fs::path tempDir = fs::temp_directory_path();
   fs::path candidate;
   do {
-    candidate = tempDir / ("incmonk-tmp-" + std::to_string(numbers(rng)));
+    candidate = dir / ("incmonk-tmp-" + std::to_string(numbers(rng)));
   } while (fs::exists(candidate));
 
-  std::ofstream create{candidate.string().c_str()};
-  return PathWithDeleter{candidate};
+  return candidate;
+}
+}
+
+auto createTempFile() -> PathWithDeleter
+{
+  fs::path filename = createTempFilename(fs::temp_directory_path());
+  std::ofstream create{filename.string().c_str()};
+  return PathWithDeleter{filename};
+}
+
+auto createTempDir() -> PathWithDeleter
+{
+  fs::path dir = createTempFilename(fs::temp_directory_path());
+  fs::create_directory(dir);
+  return PathWithDeleter{dir};
 }
 
 auto slurpUInt32File(std::filesystem::path const& path) -> std::optional<std::vector<uint32_t>>

@@ -29,12 +29,19 @@
 #include <libincmonk/FuzzTrace.h>
 #include <libincmonk/IPASIRSolver.h>
 
+#include "FileUtils.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <gsl/gsl_util>
+
+#include <filesystem>
 #include <vector>
 
 using ::testing::Eq;
+
+namespace fs = std::filesystem;
 
 namespace incmonk {
 namespace {
@@ -231,4 +238,94 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceExecTests_executeTrace,
   )
 );
 // clang-format on
+
+TEST(FuzzTraceExecTests_executeTraceWithDump, WhenExecutionSucceeds_NoTraceIsWritten)
+{
+  PathWithDeleter tempDir = createTempDir();
+  FuzzTrace inputTrace{AddClauseCmd{{1, 2}},
+                       AddClauseCmd{{-2, -1}},
+                       SolveCmd{},
+                       SolveCmd{},
+                       AssumeCmd{{1, 2}},
+                       SolveCmd{}};
+  FakeIPASIRSolver fakeSut{
+      {IPASIRSolver::Result::SAT, IPASIRSolver::Result::SAT, IPASIRSolver::Result::UNSAT}};
+
+  fs::path originalCwd = fs::current_path();
+  fs::current_path(tempDir.getPath());
+
+  gsl::final_action cleaupUp{[&originalCwd]() {
+    std::error_code ec;
+    fs::current_path(originalCwd, ec);
+  }};
+
+  std::optional<TraceExecutionFailure> result =
+      executeTraceWithDump(inputTrace.begin(), inputTrace.end(), fakeSut, "incmonk-test", 512);
+
+  EXPECT_FALSE(result.has_value());
+  EXPECT_TRUE(std::filesystem::is_empty(tempDir.getPath()));
+}
+
+
+namespace {
+void runTraceDumpTest(IPASIRSolver::Result failingResult)
+{
+  PathWithDeleter tempDir = createTempDir();
+
+  FuzzTrace inputTrace{AddClauseCmd{{1, 2}},
+                       AddClauseCmd{{-2, -1}},
+                       SolveCmd{},
+                       SolveCmd{},
+                       AssumeCmd{{1, 2}},
+                       SolveCmd{}};
+
+  FakeIPASIRSolver fakeSut{{IPASIRSolver::Result::SAT, failingResult, IPASIRSolver::Result::UNSAT}};
+
+  fs::path expectedFilename = tempDir.getPath() / "incmonk-test-000512-incorrect.mtr";
+
+  fs::path originalCwd = fs::current_path();
+  fs::current_path(tempDir.getPath());
+
+  gsl::final_action cleaupUp{[&expectedFilename, &originalCwd]() {
+    std::error_code ec;
+    if (fs::exists(expectedFilename, ec)) {
+      fs::remove(expectedFilename, ec);
+    }
+    fs::current_path(originalCwd, ec);
+  }};
+
+  std::optional<TraceExecutionFailure> result =
+      executeTraceWithDump(inputTrace.begin(), inputTrace.end(), fakeSut, "incmonk-test", 512);
+
+  ASSERT_TRUE(result.has_value() &&
+              result->reason == TraceExecutionFailure::Reason::INCORRECT_RESULT);
+  ASSERT_TRUE(fs::exists(expectedFilename));
+
+  FuzzTrace expectedWrittenTrace{
+      AddClauseCmd{{1, 2}},
+      AddClauseCmd{{-2, -1}},
+      SolveCmd{true},
+      SolveCmd{true},
+  };
+
+  FuzzTrace actualWrittenTrace = loadTrace(expectedFilename);
+
+  EXPECT_THAT(actualWrittenTrace, Eq(expectedWrittenTrace));
+}
+}
+
+TEST(FuzzTraceExecTests_executeTraceWithDump, WhenExecutionYieldsIncorrect_TraceIsWritten)
+{
+  runTraceDumpTest(IPASIRSolver::Result::UNSAT);
+}
+
+TEST(FuzzTraceExecTests_executeTraceWithDump, WhenExecutionYieldsIllegalResult_TraceIsWritten)
+{
+  runTraceDumpTest(IPASIRSolver::Result::ILLEGAL_RESULT);
+}
+
+TEST(FuzzTraceExecTests_executeTraceWithDump, WhenExecutionYieldsUnknown_TraceIsWritten)
+{
+  runTraceDumpTest(IPASIRSolver::Result::UNKNOWN);
+}
 }

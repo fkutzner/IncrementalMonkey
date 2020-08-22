@@ -30,6 +30,7 @@
 #include <libincmonk/IPASIRSolver.h>
 
 #include <optional>
+#include <string>
 
 namespace incmonk {
 
@@ -48,4 +49,25 @@ struct TraceExecutionFailure {
  */
 auto executeTrace(FuzzTrace::iterator start, FuzzTrace::iterator stop, IPASIRSolver& sut)
     -> std::optional<TraceExecutionFailure>;
+
+/**
+ * \brief Executes the given trace using `executeTrace()`, writing the trace to disk
+ *   on failure.
+ * 
+ * \param start           Start of the trace to be executed
+ * \param stop            Past-the-end iterator of the trace to be executed
+ * \param sut             The solver under test
+ * \param filenamePrefix  Arbitrary prefix for the trace filename
+ * \param runID           The (arbitrary) ID of the execution.
+ * 
+ * On failure, a file named `filenamePrefix`-`runID`-<X>.mtr is written to the current
+ * working directory, with <X> being either `incorrect` or `missingresult`.
+ * 
+ * \returns see `executeTrace()`
+ */
+auto executeTraceWithDump(FuzzTrace::iterator start,
+                          FuzzTrace::iterator stop,
+                          IPASIRSolver& sut,
+                          std::string const& filenamePrefix,
+                          uint32_t runID) -> std::optional<TraceExecutionFailure>;
 }
