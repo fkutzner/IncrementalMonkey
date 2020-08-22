@@ -34,6 +34,10 @@ Making regression test cases out of `monkey` traces is easy:
 ```
 prints `monkey-m01-crashed.mtr` as a C++11 function `foonction`.
 
+### Broken example solvers
+
+* `lib/libcrashing-ipasir-solver.so`: randomly crashes
+* `lib/libincorrect-ipasir-solver.so`: randomly produces wrong results
 
 ## Building
 
