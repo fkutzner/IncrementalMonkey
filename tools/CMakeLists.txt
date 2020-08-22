@@ -1,1 +1,1 @@
-add_subdirectory(incmonk)
+add_subdirectory(monkey)

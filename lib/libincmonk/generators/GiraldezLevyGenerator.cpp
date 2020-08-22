@@ -142,13 +142,15 @@ public:
       result.push_back(AddClauseCmd{clauseBuffer});
     }
 
+    result.push_back(SolveCmd{});
+
     return result;
   }
 
   auto generate() -> FuzzTrace override
   {
     // numLitsPerClause <= c <= numVars/numLitsPerClause
-    return generate(1000, 100, 10, 3, 0.8);
+    return generate(1000, 100, 3, 5, 0.8);
   }
 
   virtual ~GiraldezLevyGen() = default;

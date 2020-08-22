@@ -1,3 +1,5 @@
+
+
 /* Copyright (c) 2020 Felix Kutzner (github.com/fkutzner)
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,7 +26,42 @@
 
 */
 
+#include "Fuzz.h"
+
+#include <CLI/CLI.hpp>
+
+#include <string>
+
+
 auto main(int argc, char** argv) -> int
 {
-  return 0;
+  incmonk::FuzzerParams fuzzerParams;
+  uint64_t fuzzMaxRounds = 0;
+
+  CLI::App app;
+  CLI::App* fuzzApp = app.add_subcommand("fuzz", "Fuzzer for IPASIR libraries");
+  fuzzApp->add_option(
+      "--id",
+      fuzzerParams.fuzzerId,
+      "Name of the fuzzer instance, included in trace file names. (Default: random)");
+  CLI::Option* fuzzMaxRoundsOpt = fuzzApp->add_option(
+      "--rounds", fuzzMaxRounds, "Number of rounds to be executed. (Default: no limit)");
+  fuzzApp->add_option(
+      "--seed", fuzzerParams.seed, "Random number generator seed for problem generators");
+
+  fuzzApp
+      ->add_option("LIB", fuzzerParams.fuzzedLibrary, "Shared library file of the IPASIR library")
+      ->required();
+
+  app.require_subcommand(1);
+  CLI11_PARSE(app, argc, argv);
+
+  if (fuzzApp->parsed()) {
+    if (!fuzzMaxRoundsOpt->empty()) {
+      fuzzerParams.roundsLimit = fuzzMaxRounds;
+    }
+    return incmonk::fuzzerMain(fuzzerParams);
+  }
+
+  return incmonk::fuzzerMain({argv[2], std::nullopt, ""});
 }
