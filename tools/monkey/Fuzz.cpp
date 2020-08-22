@@ -62,7 +62,8 @@ public:
     if (m_step > 0 && m_step % 100 == 0) {
       auto elapsedTime = m_stopwatch.getElapsedTime<std::chrono::milliseconds>();
       std::cout << "Running at " << 100000.0 / static_cast<double>(elapsedTime.count()) << " x/s ";
-      std::cout << "failures: " << m_failures << " crashes: " << m_crashes << "\n";
+      std::cout << "failures: " << m_failures << " crashes: " << m_crashes;
+      std::cout << " timeouts: " << m_timeouts << "\n";
       m_stopwatch = Stopwatch{};
     }
     ++m_step;
@@ -76,12 +77,17 @@ public:
 
   auto getNumFailures() const noexcept -> uint64_t { return m_failures; }
 
+  void onTimeout() { ++m_timeouts; }
+
+  auto getNumTimeouts() const noexcept -> uint64_t { return m_timeouts; }
+
 private:
   uint64_t m_step = 0;
   Stopwatch m_stopwatch;
 
   uint64_t m_crashes = 0;
   uint64_t m_failures = 0;
+  uint64_t m_timeouts = 0;
 };
 
 void storeCrashTrace(FuzzTrace const& trace, std::string const& fuzzerID, uint32_t runID)
@@ -97,11 +103,20 @@ auto fuzzerMain(FuzzerParams const& params) -> int
   using namespace incmonk;
 
   std::string fuzzerID = params.fuzzerId.empty() ? createFuzzerID() : params.fuzzerId;
-  std::cout << "Fuzzer ID: " << fuzzerID << std::endl;
+  std::cout << "ID: " << fuzzerID << std::endl;
 
   auto randomSatGen = createGiraldezLevyGen(params.seed);
   IPASIRSolverDSO ipasirDSO{params.fuzzedLibrary};
-  auto ipasir = createIPASIRSolver(ipasirDSO);
+  std::unique_ptr<IPASIRSolver> ipasir;
+
+  try {
+    ipasir = createIPASIRSolver(ipasirDSO);
+  }
+  catch (DSOLoadError const& error) {
+    std::cerr << "Error: " << error.what() << "\n";
+    return EXIT_FAILURE;
+  }
+
   Report report;
 
   uint64_t runID = 0;
@@ -110,22 +125,26 @@ auto fuzzerMain(FuzzerParams const& params) -> int
 
     FuzzTrace trace = randomSatGen->generate();
 
-    uint64_t result = 0;
+    std::optional<uint64_t> result = 0;
     try {
-      result = *syncExecInFork(
+      result = syncExecInFork(
           [&ipasir, &trace, &runID, &fuzzerID]() {
             auto failure =
                 executeTraceWithDump(trace.begin(), trace.end(), *ipasir, fuzzerID, runID);
             return failure.has_value() ? 1 : 2;
           },
-          EXIT_SUCCESS);
+          EXIT_SUCCESS,
+          params.timeout);
     }
     catch (ChildExecutionFailure const&) {
       report.onCrashed();
       storeCrashTrace(trace, fuzzerID, runID);
     }
 
-    if (result != 2) {
+    if (!result.has_value()) {
+      report.onTimeout();
+    }
+    else if (*result != 2) {
       report.onFailed();
       // Child process has written trace
     }
@@ -138,6 +157,7 @@ auto fuzzerMain(FuzzerParams const& params) -> int
 
   std::cout << "Finished fuzzing.";
   std::cout << "\nExecuted rounds: " << runID;
+  std::cout << "\nTimeouts: " << report.getNumTimeouts();
   std::cout << "\nDetected failures: " << report.getNumFailures();
   std::cout << "\nDetected crashes: " << report.getNumCrashes();
   std::cout << "\nGenerated error traces: " << (report.getNumFailures() + report.getNumFailures())

@@ -24,21 +24,39 @@
 
 */
 
-#pragma once
+#include "Replay.h"
 
-#include <chrono>
-#include <filesystem>
-#include <optional>
-#include <string>
+#include <libincmonk/FuzzTrace.h>
+#include <libincmonk/FuzzTraceExec.h>
+#include <libincmonk/IPASIRSolver.h>
+
+#include <iostream>
 
 namespace incmonk {
-struct FuzzerParams {
-  std::filesystem::path fuzzedLibrary;
-  std::optional<uint64_t> roundsLimit;
-  std::optional<std::chrono::milliseconds> timeout;
-  std::string fuzzerId;
-  uint64_t seed = 10;
-};
+auto replayMain(ReplayParams const& params) -> int
+{
+  try {
+    IPASIRSolverDSO ipasirDSO{params.solverLibrary};
+    auto ipasir = createIPASIRSolver(ipasirDSO);
+    FuzzTrace toReplay = loadTrace(params.traceFile);
 
-auto fuzzerMain(FuzzerParams const& params) -> int;
+    auto failure = executeTrace(toReplay.begin(), toReplay.end(), *ipasir);
+
+    if (failure.has_value()) {
+      std::cout << "Failed: test oracle did not accept result\n";
+      return EXIT_FAILURE;
+    }
+  }
+  catch (IOException const& error) {
+    std::cerr << "Error: " << error.what() << "\n";
+    return EXIT_FAILURE;
+  }
+  catch (DSOLoadError const& error) {
+    std::cerr << "Error: " << error.what() << "\n";
+    return EXIT_FAILURE;
+  }
+
+  std::cout << "Passed\n";
+  return EXIT_SUCCESS;
+}
 }

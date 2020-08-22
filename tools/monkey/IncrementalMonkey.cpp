@@ -27,6 +27,7 @@
 */
 
 #include "Fuzz.h"
+#include "Replay.h"
 
 #include <CLI/CLI.hpp>
 
@@ -36,7 +37,10 @@
 auto main(int argc, char** argv) -> int
 {
   incmonk::FuzzerParams fuzzerParams;
+  incmonk::ReplayParams replayParams;
+
   uint64_t fuzzMaxRounds = 0;
+  uint64_t fuzzTimeoutMillis = 0;
 
   CLI::App app;
   CLI::App* fuzzApp = app.add_subcommand("fuzz", "Fuzzer for IPASIR libraries");
@@ -46,12 +50,20 @@ auto main(int argc, char** argv) -> int
       "Name of the fuzzer instance, included in trace file names. (Default: random)");
   CLI::Option* fuzzMaxRoundsOpt = fuzzApp->add_option(
       "--rounds", fuzzMaxRounds, "Number of rounds to be executed. (Default: no limit)");
+  CLI::Option* fuzzTimeoutMillisOpt = fuzzApp->add_option(
+      "--timeout", fuzzTimeoutMillis, "Timeout for solver runs. (Default: no limit)");
   fuzzApp->add_option(
       "--seed", fuzzerParams.seed, "Random number generator seed for problem generators");
 
-  fuzzApp
-      ->add_option("LIB", fuzzerParams.fuzzedLibrary, "Shared library file of the IPASIR library")
+  fuzzApp->add_option("LIB", fuzzerParams.fuzzedLibrary, "Shared library file of the IPASIR solver")
       ->required();
+
+
+  CLI::App* replayApp = app.add_subcommand("replay", "Apply failure traces to IPASIR solvers");
+  replayApp
+      ->add_option("LIB", replayParams.solverLibrary, "Shared library file of the IPASIR solver")
+      ->required();
+  replayApp->add_option("TRACE", replayParams.traceFile, ".mtr file to apply")->required();
 
   app.require_subcommand(1);
   CLI11_PARSE(app, argc, argv);
@@ -60,8 +72,17 @@ auto main(int argc, char** argv) -> int
     if (!fuzzMaxRoundsOpt->empty()) {
       fuzzerParams.roundsLimit = fuzzMaxRounds;
     }
+    if (!fuzzTimeoutMillisOpt->empty()) {
+      std::cout << "with timeout\n";
+      fuzzerParams.timeout = std::chrono::milliseconds{fuzzTimeoutMillis};
+    }
     return incmonk::fuzzerMain(fuzzerParams);
   }
 
-  return incmonk::fuzzerMain({argv[2], std::nullopt, ""});
+  if (replayApp->parsed()) {
+    return incmonk::replayMain(replayParams);
+  }
+
+  // Not reachable
+  return EXIT_FAILURE;
 }

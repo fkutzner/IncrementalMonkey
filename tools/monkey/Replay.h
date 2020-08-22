@@ -26,19 +26,13 @@
 
 #pragma once
 
-#include <chrono>
 #include <filesystem>
-#include <optional>
-#include <string>
 
 namespace incmonk {
-struct FuzzerParams {
-  std::filesystem::path fuzzedLibrary;
-  std::optional<uint64_t> roundsLimit;
-  std::optional<std::chrono::milliseconds> timeout;
-  std::string fuzzerId;
-  uint64_t seed = 10;
+struct ReplayParams {
+  std::filesystem::path traceFile;
+  std::filesystem::path solverLibrary;
 };
 
-auto fuzzerMain(FuzzerParams const& params) -> int;
+auto replayMain(ReplayParams const& params) -> int;
 }
