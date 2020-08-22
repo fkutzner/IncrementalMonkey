@@ -125,6 +125,7 @@ auto fuzzerMain(FuzzerParams const& params) -> int
 
     FuzzTrace trace = randomSatGen->generate();
 
+    bool crashed = false;
     std::optional<uint64_t> result = 0;
     try {
       result = syncExecInFork(
@@ -139,12 +140,13 @@ auto fuzzerMain(FuzzerParams const& params) -> int
     catch (ChildExecutionFailure const&) {
       report.onCrashed();
       storeCrashTrace(trace, fuzzerID, runID);
+      crashed = true;
     }
 
     if (!result.has_value()) {
       report.onTimeout();
     }
-    else if (*result != 2) {
+    else if (!crashed && *result != 2) {
       report.onFailed();
       // Child process has written trace
     }
@@ -158,9 +160,9 @@ auto fuzzerMain(FuzzerParams const& params) -> int
   std::cout << "Finished fuzzing.";
   std::cout << "\nExecuted rounds: " << runID;
   std::cout << "\nTimeouts: " << report.getNumTimeouts();
-  std::cout << "\nDetected failures: " << report.getNumFailures();
+  std::cout << "\nDetected correctness failures: " << report.getNumFailures();
   std::cout << "\nDetected crashes: " << report.getNumCrashes();
-  std::cout << "\nGenerated error traces: " << (report.getNumFailures() + report.getNumFailures())
+  std::cout << "\nGenerated error traces: " << (report.getNumCrashes() + report.getNumFailures())
             << "\n";
   return EXIT_SUCCESS;
 }
