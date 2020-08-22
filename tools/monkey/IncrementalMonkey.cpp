@@ -27,6 +27,7 @@
 */
 
 #include "Fuzz.h"
+#include "Print.h"
 #include "Replay.h"
 
 #include <CLI/CLI.hpp>
@@ -38,20 +39,21 @@ auto main(int argc, char** argv) -> int
 {
   incmonk::FuzzerParams fuzzerParams;
   incmonk::ReplayParams replayParams;
+  incmonk::PrintParams printParams;
 
   uint64_t fuzzMaxRounds = 0;
   uint64_t fuzzTimeoutMillis = 0;
 
   CLI::App app;
-  CLI::App* fuzzApp = app.add_subcommand("fuzz", "Fuzzer for IPASIR libraries");
+  CLI::App* fuzzApp = app.add_subcommand("fuzz", "Random-test an IPASIR library");
   fuzzApp->add_option(
       "--id",
       fuzzerParams.fuzzerId,
-      "Name of the fuzzer instance, included in trace file names. (Default: random)");
+      "Name of the fuzzer instance, included in trace file names (default: random)");
   CLI::Option* fuzzMaxRoundsOpt = fuzzApp->add_option(
-      "--rounds", fuzzMaxRounds, "Number of rounds to be executed. (Default: no limit)");
+      "--rounds", fuzzMaxRounds, "Number of rounds to be executed (default: no limit)");
   CLI::Option* fuzzTimeoutMillisOpt = fuzzApp->add_option(
-      "--timeout", fuzzTimeoutMillis, "Timeout for solver runs. (Default: no limit)");
+      "--timeout", fuzzTimeoutMillis, "Timeout for solver runs (default: no limit)");
   fuzzApp->add_option(
       "--seed", fuzzerParams.seed, "Random number generator seed for problem generators");
 
@@ -64,6 +66,12 @@ auto main(int argc, char** argv) -> int
       ->add_option("LIB", replayParams.solverLibrary, "Shared library file of the IPASIR solver")
       ->required();
   replayApp->add_option("TRACE", replayParams.traceFile, ".mtr file to apply")->required();
+
+
+  CLI::App* printApp = app.add_subcommand("print", "Print a trace as a C function body");
+  printApp->add_option(
+      "--solver-varname", printParams.solverVarName, "Solver variable name (default: solver)");
+  printApp->add_option("TRACE", printParams.traceFile, ".mtr file to print")->required();
 
   app.require_subcommand(1);
   CLI11_PARSE(app, argc, argv);
@@ -78,9 +86,11 @@ auto main(int argc, char** argv) -> int
     }
     return incmonk::fuzzerMain(fuzzerParams);
   }
-
-  if (replayApp->parsed()) {
+  else if (replayApp->parsed()) {
     return incmonk::replayMain(replayParams);
+  }
+  else if (printApp->parsed()) {
+    return incmonk::printMain(printParams);
   }
 
   // Not reachable

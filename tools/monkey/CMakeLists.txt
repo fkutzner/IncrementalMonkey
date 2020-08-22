@@ -2,6 +2,8 @@ nm_add_tool(monkey
   Fuzz.cpp
   Fuzz.h
   IncrementalMonkey.cpp
+  Print.cpp
+  Print.h
   Replay.cpp
   Replay.h
 )
