@@ -28,12 +28,18 @@ To apply a single trace file to your solver, run
 This command does not execute the solver in subprocesses and can
 easily be debugged.
 
+Making regression test cases out of `monkey` traces is easy:
+```
+# monkey print --function-name foonction monkey-m01-crashed.mtr
+```
+prints `monkey-m01-crashed.mtr` as a C++11 function `foonction`.
+
 
 ## Building
 
 Currently, Incremental Monkey can be used on macOS (10.15 and later)
 and Linux. You'll need a not-so-ancient compiler and C++ standard
-library (supporting C++17 - GCC 8 or clang 10 will do),  `git` and 
+library (supporting C++17 - GCC 8 or Clang 10 will do),  `git` and 
 `cmake` (>= 3.12). It might also be usable on Cygwin, but as it relies
 on rapidly `fork()`ing subprocesses, running it on Cygwin might only work
 well when generating harder problem instances.
@@ -56,6 +62,10 @@ Build CryptoMiniSat:
 Build Incremental Monkey:
 ```
 # git clone https://github.com/fkutzner/IncrementalMonkey
+# cd IncrementalMonkey
+# git submodule init
+# git submodule update
+# cd ..
 # mkdir monkey-build
 # cd monkey-build
 # cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=(pwd)/../cms-install ../IncrementalMonkey

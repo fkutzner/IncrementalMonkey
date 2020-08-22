@@ -45,7 +45,7 @@ auto main(int argc, char** argv) -> int
   uint64_t fuzzTimeoutMillis = 0;
 
   CLI::App app;
-  CLI::App* fuzzApp = app.add_subcommand("fuzz", "Random-test an IPASIR library");
+  CLI::App* fuzzApp = app.add_subcommand("fuzz", "Random-tes IPASIR libraries");
   fuzzApp->add_option(
       "--id",
       fuzzerParams.fuzzerId,
@@ -68,9 +68,11 @@ auto main(int argc, char** argv) -> int
   replayApp->add_option("TRACE", replayParams.traceFile, ".mtr file to apply")->required();
 
 
-  CLI::App* printApp = app.add_subcommand("print", "Print a trace as a C function body");
+  CLI::App* printApp = app.add_subcommand("print", "Print traces as C++11 code");
   printApp->add_option(
       "--solver-varname", printParams.solverVarName, "Solver variable name (default: solver)");
+  printApp->add_option(
+      "--function-name", printParams.funcName, "Function name (default: only a body is printed)");
   printApp->add_option("TRACE", printParams.traceFile, ".mtr file to print")->required();
 
   app.require_subcommand(1);

@@ -35,7 +35,19 @@ auto printMain(PrintParams const& params) -> int
 {
   try {
     FuzzTrace trace = loadTrace(params.traceFile);
-    std::cout << toCFunctionBody(trace.begin(), trace.end(), params.solverVarName);
+
+    if (!params.funcName.empty()) {
+      std::cout << "#include <ipasir.h>\n#include <initializer_list>\n#include <cassert>\n\n";
+      std::cout << "void " << params.funcName << "() {\n";
+      std::cout << "void* " << params.solverVarName << " = ipasir_init();\n";
+      std::cout << "if (" << params.solverVarName << " == nullptr) {\n  return;\n}\n";
+    }
+
+    std::cout << toCxxFunctionBody(trace.begin(), trace.end(), params.solverVarName);
+
+    if (!params.funcName.empty()) {
+      std::cout << "\nipasir_release(" << params.solverVarName << ");\n}\n";
+    }
   }
   catch (IOException const& error) {
     std::cerr << error.what() << "\n";

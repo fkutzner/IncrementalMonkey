@@ -27,11 +27,13 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 
 namespace incmonk {
 struct PrintParams {
   std::filesystem::path traceFile;
+  std::string funcName;
   std::string solverVarName = "solver";
 };
 

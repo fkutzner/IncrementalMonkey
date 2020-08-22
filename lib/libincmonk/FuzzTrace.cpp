@@ -150,22 +150,41 @@ auto applyTrace(FuzzTrace::const_iterator first,
 }
 
 namespace {
-auto toString(std::string const& solverVarName, AddClauseCmd const& cmd) -> std::string
+auto toCommaSeparatedStr(std::vector<int> vec)
 {
   std::string result;
-  for (CNFLit lit : cmd.clauseToAdd) {
-    result += "ipasir_add(" + solverVarName + ", " + std::to_string(lit) + ");\n";
+  bool first = true;
+  for (CNFLit lit : vec) {
+    if (!first) {
+      result += ",";
+    }
+    result += std::to_string(lit);
+    first = false;
   }
-  result += "ipasir_add(" + solverVarName + ", 0);\n";
+  return result;
+}
+
+auto toString(std::string const& solverVarName, AddClauseCmd const& cmd) -> std::string
+{
+  if (cmd.clauseToAdd.empty()) {
+    return "ipasir_add(" + solverVarName + ", 0);\n";
+  }
+
+  std::string result = "for (int lit : {";
+  result += toCommaSeparatedStr(cmd.clauseToAdd) + ",0}) {\n";
+  result += "  ipasir_add(" + solverVarName + ", lit);\n}";
   return result;
 }
 
 auto toString(std::string const& solverVarName, AssumeCmd const& cmd) -> std::string
 {
-  std::string result;
-  for (CNFLit lit : cmd.assumptions) {
-    result += "ipasir_assume(" + solverVarName + ", " + std::to_string(lit) + ");\n";
+  if (cmd.assumptions.empty()) {
+    return "";
   }
+
+  std::string result = "for (int assump : {";
+  result += toCommaSeparatedStr(cmd.assumptions);
+  result += "}) {\n  ipasir_assume(" + solverVarName + ", assump);\n}";
   return result;
 }
 
@@ -184,9 +203,9 @@ auto toString(std::string const& solverVarName, SolveCmd const& cmd) -> std::str
 }
 }
 
-auto toCFunctionBody(FuzzTrace::const_iterator first,
-                     FuzzTrace::const_iterator last,
-                     std::string const& argName) -> std::string
+auto toCxxFunctionBody(FuzzTrace::const_iterator first,
+                       FuzzTrace::const_iterator last,
+                       std::string const& argName) -> std::string
 {
   std::string result;
   for (FuzzTrace::const_iterator cmd = first; cmd != last; ++cmd) {

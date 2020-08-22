@@ -35,17 +35,17 @@
 
 namespace incmonk {
 
-class FuzzTraceTests_toCFunctionBody
+class FuzzTraceTests_toCxxFunctionBody
   : public ::testing::TestWithParam<std::tuple<FuzzTrace, std::string>> {
 public:
-  virtual ~FuzzTraceTests_toCFunctionBody() = default;
+  virtual ~FuzzTraceTests_toCxxFunctionBody() = default;
 };
 
-TEST_P(FuzzTraceTests_toCFunctionBody, TestSuite)
+TEST_P(FuzzTraceTests_toCxxFunctionBody, TestSuite)
 {
   FuzzTrace input = std::get<0>(GetParam());
   std::string expectedResult = std::get<1>(GetParam());
-  std::string result = toCFunctionBody(input.begin(), input.end(), "solver");
+  std::string result = toCxxFunctionBody(input.begin(), input.end(), "solver");
 
   std::string const resultWithNewlines = result;
   result.erase(std::remove(result.begin(), result.end(), '\n'), result.end());
@@ -56,19 +56,19 @@ TEST_P(FuzzTraceTests_toCFunctionBody, TestSuite)
 }
 
 // clang-format off
-INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_toCFunctionBody,
+INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_toCxxFunctionBody,
   ::testing::Values(
     std::make_tuple(FuzzTrace{}, ""),
 
     std::make_tuple(FuzzTrace{AddClauseCmd{}}, "ipasir_add(solver, 0);"),
-    std::make_tuple(FuzzTrace{AddClauseCmd{{1}}}, "ipasir_add(solver, 1);ipasir_add(solver, 0);"),
+    std::make_tuple(FuzzTrace{AddClauseCmd{{1}}}, "for (int lit : {1,0}) {  ipasir_add(solver, lit);}"),
     std::make_tuple(FuzzTrace{AddClauseCmd{{1, -2, -3}}},
-      "ipasir_add(solver, 1);ipasir_add(solver, -2);ipasir_add(solver, -3);ipasir_add(solver, 0);"),
+      "for (int lit : {1,-2,-3,0}) {  ipasir_add(solver, lit);}"),
 
     std::make_tuple(FuzzTrace{AssumeCmd{}}, ""),
-    std::make_tuple(FuzzTrace{AssumeCmd{{1}}}, "ipasir_assume(solver, 1);"),
+    std::make_tuple(FuzzTrace{AssumeCmd{{1}}}, "for (int assump : {1}) {  ipasir_assume(solver, assump);}"),
     std::make_tuple(FuzzTrace{AssumeCmd{{1, -2, -3}}},
-      "ipasir_assume(solver, 1);ipasir_assume(solver, -2);ipasir_assume(solver, -3);"),
+      "for (int assump : {1,-2,-3}) {  ipasir_assume(solver, assump);}"),
 
     std::make_tuple(FuzzTrace{SolveCmd{}}, "ipasir_solve(solver);"),
     std::make_tuple(FuzzTrace{SolveCmd{false}}, "{int result = ipasir_solve(solver); assert(result == 20);}"),
@@ -81,9 +81,9 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_toCFunctionBody,
         AssumeCmd{{1}},
         SolveCmd{true}
       },
-      "ipasir_add(solver, 1);ipasir_add(solver, -2);ipasir_add(solver, 0);"
-      "ipasir_add(solver, -2);ipasir_add(solver, 4);ipasir_add(solver, 0);"
-      "ipasir_assume(solver, 1);"
+      "for (int lit : {1,-2,0}) {  ipasir_add(solver, lit);}"
+      "for (int lit : {-2,4,0}) {  ipasir_add(solver, lit);}"
+      "for (int assump : {1}) {  ipasir_assume(solver, assump);}"
       "{int result = ipasir_solve(solver); assert(result == 10);}"
     )
   )
@@ -240,7 +240,7 @@ TEST_F(FuzzTraceTests_applyTrace, WhenSolvingIsStopped_ThenIndexOfSolveCmdIsRetu
   EXPECT_THAT(recorder.getTrace(), ::testing::Eq(expectedTrace));
 
   // Check that the SolveCmd{} command is recognized:
-  auto resultIterForEmptySolveCmd = applyTrace(resultIter + 1, input.end(), recorder);
+  applyTrace(resultIter + 1, input.end(), recorder);
   expectedTrace.push_back(AddClauseCmd{{2}});
   expectedTrace.push_back(SolveCmd{false});
 
