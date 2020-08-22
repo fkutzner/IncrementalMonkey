@@ -7,3 +7,6 @@
 [submodule "deps/CLI11"]
 	path = deps/CLI11
 	url = https://github.com/CLIUtils/CLI11
+[submodule "deps/ipasir"]
+	path = deps/ipasir
+	url = https://github.com/biotomas/ipasir

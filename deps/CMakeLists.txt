@@ -15,3 +15,7 @@ find_package(cryptominisat5 REQUIRED 5.8.0)
 add_library(deps_cms INTERFACE)
 target_link_libraries(deps_cms INTERFACE cryptominisat5)
 target_include_directories(deps_cms INTERFACE ${CRYPTOMINISAT5_INCLUDE_DIRS})
+
+
+add_library(deps_ipasir INTERFACE)
+target_include_directories(deps_ipasir INTERFACE "${CMAKE_CURRENT_LIST_DIR}/ipasir")
