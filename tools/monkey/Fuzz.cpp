@@ -32,7 +32,7 @@
 #include <libincmonk/IPASIRSolver.h>
 #include <libincmonk/Stopwatch.h>
 
-#include <libincmonk/generators/GiraldezLevyGenerator.h>
+#include <libincmonk/generators/CommunityAttachmentGenerator.h>
 
 #include <cstdint>
 #include <iomanip>
@@ -106,7 +106,7 @@ auto fuzzerMain(FuzzerParams const& params) -> int
   std::cout << "ID: " << fuzzerID << "\n";
   std::cout << "Random seed: " << params.seed << std::endl;
 
-  auto randomSatGen = createGiraldezLevyGen(params.seed);
+  auto randomSatGen = createCommunityAttachmentGen(params.seed);
   IPASIRSolverDSO ipasirDSO{params.fuzzedLibrary};
   std::unique_ptr<IPASIRSolver> ipasir;
 

@@ -24,7 +24,7 @@
 
 */
 
-#include <libincmonk/generators/GiraldezLevyGenerator.h>
+#include <libincmonk/generators/CommunityAttachmentGenerator.h>
 
 #include <libincmonk/CNF.h>
 #include <libincmonk/SolveCmdScheduler.h>
@@ -34,9 +34,9 @@
 
 namespace incmonk {
 namespace {
-class GiraldezLevyGen final : public FuzzTraceGenerator {
+class CommunityAttachmentGen final : public FuzzTraceGenerator {
 public:
-  GiraldezLevyGen(uint32_t seed) { m_rng.seed(seed); }
+  CommunityAttachmentGen(uint32_t seed) { m_rng.seed(seed); }
 
 
   // Fills communityIndices with the index for each literal of the clause
@@ -142,7 +142,7 @@ public:
       generateClause(clauseBuffer, communityIndices, numVariables, numCommunities);
       result.push_back(AddClauseCmd{clauseBuffer});
     }
-    
+
     return result;
   }
 
@@ -154,7 +154,7 @@ public:
     return insertSolveCmds(generate(1000, 100, 3, 5, 0.8), 1000, solveCmdSeedDistr(m_rng));
   }
 
-  virtual ~GiraldezLevyGen() = default;
+  virtual ~CommunityAttachmentGen() = default;
 
 private:
   std::mt19937 m_rng;
@@ -163,8 +163,8 @@ private:
 };
 }
 
-auto createGiraldezLevyGen(uint32_t seed) -> std::unique_ptr<FuzzTraceGenerator>
+auto createCommunityAttachmentGen(uint32_t seed) -> std::unique_ptr<FuzzTraceGenerator>
 {
-  return std::make_unique<GiraldezLevyGen>(seed);
+  return std::make_unique<CommunityAttachmentGen>(seed);
 }
 }

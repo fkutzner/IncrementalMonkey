@@ -31,5 +31,12 @@
 #include <memory>
 
 namespace incmonk {
-auto createGiraldezLevyGen(uint32_t seed) -> std::unique_ptr<FuzzTraceGenerator>;
+
+/**
+ * Trace generator based on:
+ * 
+ * Giráldez-Cru, Jesús, and Jordi Levy. "A modularity-based random SAT instances generator."
+ * IJCAI'15: Proceedings of the 24th International Conference on Artificial Intelligence
+ */
+auto createCommunityAttachmentGen(uint32_t seed) -> std::unique_ptr<FuzzTraceGenerator>;
 }
