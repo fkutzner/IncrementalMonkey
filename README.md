@@ -14,8 +14,10 @@ For each solver crash or failure to produce a correct result,
 `monkey` creates a file `monkey-<id>-<runNumber>-crashed.mtr`
 rsp. `monkey-<id>-<runNumber>-incorrect.mtr` in the current working
 directory. These files contain traces of IPASIR calls inducing the
-undesired behavior. Note that `monkey` does not distinguish failures
-in `solver.so` from test oracle failures.
+undesired behavior. Currently, `monkey` does not distinguish failures
+in `solver.so` from test oracle failures. If you suspect a test
+oracle failure, you can run the trace on a different
+IPASIR implementation using the `replay` command (see below).
 
 The testing process can be customized in a number of ways
 (test instance generation parameters, timeout, execution limits, ...).
@@ -33,6 +35,10 @@ Making regression test cases out of `monkey` traces is easy:
 # monkey print --function-name foonction monkey-m01-crashed.mtr
 ```
 prints `monkey-m01-crashed.mtr` as a C++11 function `foonction`.
+If the trace was dumped in a run where the test oracle rejected
+the tested solver's result, the `ipasir_solve` calls are equipped
+with assertions checking the result. In crash traces, oracle data
+is lost and no assertions are inserted.
 
 ### Broken example solvers
 

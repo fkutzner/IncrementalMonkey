@@ -27,6 +27,7 @@
 #include <libincmonk/generators/GiraldezLevyGenerator.h>
 
 #include <libincmonk/CNF.h>
+#include <libincmonk/SolveCmdScheduler.h>
 
 #include <algorithm>
 #include <random>
@@ -141,16 +142,16 @@ public:
       generateClause(clauseBuffer, communityIndices, numVariables, numCommunities);
       result.push_back(AddClauseCmd{clauseBuffer});
     }
-
-    result.push_back(SolveCmd{});
-
+    
     return result;
   }
 
   auto generate() -> FuzzTrace override
   {
     // numLitsPerClause <= c <= numVars/numLitsPerClause
-    return generate(1000, 100, 3, 5, 0.8);
+    // TODO: configurable parameter distributions
+    std::uniform_int_distribution<int32_t> solveCmdSeedDistr;
+    return insertSolveCmds(generate(1000, 100, 3, 5, 0.8), 1000, solveCmdSeedDistr(m_rng));
   }
 
   virtual ~GiraldezLevyGen() = default;

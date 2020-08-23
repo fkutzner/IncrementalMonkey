@@ -1,5 +1,6 @@
 nm_add_library(libincmonk STATIC
   CNF.h
+  FastRand.h
   Fork.h
   Fork.cpp
   FuzzTrace.cpp
@@ -10,6 +11,8 @@ nm_add_library(libincmonk STATIC
   IPASIRSolver.h
   Oracle.h
   OracleCMS.cpp
+  SolveCmdScheduler.cpp
+  SolveCmdScheduler.h
 
   generators/FuzzTraceGenerator.h
   generators/GiraldezLevyGenerator.cpp
