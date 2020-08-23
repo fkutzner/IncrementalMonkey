@@ -29,14 +29,38 @@
 #include <libincmonk/generators/FuzzTraceGenerator.h>
 
 #include <memory>
+#include <random>
 
 namespace incmonk {
+
+struct CommunityAttachmentModelParams {
+  std::piecewise_linear_distribution<double> numClausesDistribution;
+  std::piecewise_linear_distribution<double> clauseSizeDistribution;
+  std::piecewise_linear_distribution<double> numVariablesPerClauseDistribution;
+  std::piecewise_linear_distribution<double> modularityDistribution;
+  uint64_t seed = 1;
+};
 
 /**
  * Trace generator based on:
  * 
  * Giráldez-Cru, Jesús, and Jordi Levy. "A modularity-based random SAT instances generator."
  * IJCAI'15: Proceedings of the 24th International Conference on Artificial Intelligence
+ * 
+ * For each generated trace, the community attachment parameters are chosen as follows:
+ * 
+ * - the numberOfClauses is picked from params.numClausesDistribution (rounded to nearest
+ *   integer)
+ * 
+ * - the clauseSize is picked from params.clauseSizeDistribution, but a minimum of 2 is used.
+ * 
+ * - the numberOfVars/numberOfClauses ratio is picked from numVariablesPerClauseDistribution
+ *   (clamped to [0.0, 1.0]). The actual numberOfVars is computed using this ratio, but
+ *   is at least clauseSize^2 (required by the community attachment model).
+ * 
+ * - the modularity is picked from params.modularityDistribution and clamped to [0.0, 1.0].
+ * 
  */
-auto createCommunityAttachmentGen(uint32_t seed) -> std::unique_ptr<FuzzTraceGenerator>;
+auto createCommunityAttachmentGen(CommunityAttachmentModelParams params)
+    -> std::unique_ptr<FuzzTraceGenerator>;
 }

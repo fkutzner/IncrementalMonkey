@@ -96,7 +96,39 @@ void storeCrashTrace(FuzzTrace const& trace, std::string const& fuzzerID, uint32
   formatter << fuzzerID << "-" << std::setfill('0') << std::setw(6) << runID << "-crashed.mtr";
   storeTrace(trace.begin(), trace.end(), formatter.str());
 }
+
+auto createPWDist(std::vector<double> const& vals, std::vector<double> const& weights)
+    -> std::piecewise_linear_distribution<double>
+{
+  return std::piecewise_linear_distribution<double>(vals.begin(), vals.end(), weights.begin());
 }
+
+auto createDefaultCAModelParams(uint64_t seed) -> CommunityAttachmentModelParams
+{
+  // clang-format off
+  std::vector<double> const       problemSizes = {200.0, 400.0, 600.0, 800.0, 1000.0, 1200.0};
+  std::vector<double> const problemSizeWeights = {  0.0,   1.0,   0.0,   0.0,    1.0,    0.0};
+
+  std::vector<double> const       clauseSizes = {2.0, 4.0, 10.0};
+  std::vector<double> const clauseSizeWeights = {0.0, 1.0,  0.0};
+
+  std::vector<double> const       varsPerClauses = {0.05, 0.25};
+  std::vector<double> const varsPerClauseWeights = {1.0,  1.0};
+
+  std::vector<double> const      modularities = {0.0, 0.7, 0.8, 1.0};
+  std::vector<double> const modularityWeights = {0.0, 0.0, 1.0, 0.0};
+  // clang-format on
+
+  CommunityAttachmentModelParams result;
+  result.numClausesDistribution = createPWDist(problemSizes, problemSizeWeights);
+  result.clauseSizeDistribution = createPWDist(clauseSizes, clauseSizeWeights);
+  result.numVariablesPerClauseDistribution = createPWDist(varsPerClauses, varsPerClauseWeights);
+  result.modularityDistribution = createPWDist(modularities, modularityWeights);
+  result.seed = seed;
+  return result;
+}
+}
+
 
 auto fuzzerMain(FuzzerParams const& params) -> int
 {
@@ -106,7 +138,9 @@ auto fuzzerMain(FuzzerParams const& params) -> int
   std::cout << "ID: " << fuzzerID << "\n";
   std::cout << "Random seed: " << params.seed << std::endl;
 
-  auto randomSatGen = createCommunityAttachmentGen(params.seed);
+  CommunityAttachmentModelParams genParams = createDefaultCAModelParams(params.seed);
+
+  auto randomSatGen = createCommunityAttachmentGen(std::move(genParams));
   IPASIRSolverDSO ipasirDSO{params.fuzzedLibrary};
   std::unique_ptr<IPASIRSolver> ipasir;
 

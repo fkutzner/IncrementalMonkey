@@ -32,11 +32,15 @@
 #include <algorithm>
 #include <random>
 
+
 namespace incmonk {
 namespace {
 class CommunityAttachmentGen final : public FuzzTraceGenerator {
 public:
-  CommunityAttachmentGen(uint32_t seed) { m_rng.seed(seed); }
+  CommunityAttachmentGen(CommunityAttachmentModelParams params) : m_params{std::move(params)}
+  {
+    m_rng.seed(m_params.seed);
+  }
 
 
   // Fills communityIndices with the index for each literal of the clause
@@ -102,7 +106,7 @@ public:
                       int32_t numCommunities)
   {
     do {
-      for (int i = 0; i < targetBuffer.size(); ++i) {
+      for (std::vector<int32_t>::size_type i = 0; i < targetBuffer.size(); ++i) {
         double nc = static_cast<double>(numVariables) / static_cast<double>(numCommunities);
 
         // community indices {0, ..., c-1}, while in the paper they are {1, ..., c}
@@ -148,10 +152,29 @@ public:
 
   auto generate() -> FuzzTrace override
   {
-    // numLitsPerClause <= c <= numVars/numLitsPerClause
-    // TODO: configurable parameter distributions
+    uint32_t numClauses = std::max(0.0, std::round(m_params.numClausesDistribution(m_rng)));
+    double variableQuot = m_params.numVariablesPerClauseDistribution(m_rng);
+    variableQuot = std::clamp(variableQuot, 0.0, 1.0);
+
+    uint32_t clauseSize = std::max(1.0, std::round(m_params.clauseSizeDistribution(m_rng)));
+    uint32_t numVariables =
+        std::max(clauseSize * clauseSize, static_cast<uint32_t>(numClauses * variableQuot));
+
+    uint32_t minCommunities = clauseSize;
+    uint32_t maxCommunities = numVariables / clauseSize;
+    std::uniform_int_distribution<uint32_t> communitySizeDistr{minCommunities, maxCommunities};
+    uint32_t numCommunities = communitySizeDistr(m_rng);
+
+    double modularity = m_params.modularityDistribution(m_rng);
+    modularity = std::clamp(modularity, 0.0, 1.0);
+
+
     std::uniform_int_distribution<int32_t> solveCmdSeedDistr;
-    return insertSolveCmds(generate(1000, 100, 3, 5, 0.8), 1000, solveCmdSeedDistr(m_rng));
+
+    return insertSolveCmds(
+        generate(numClauses, numVariables, numCommunities, clauseSize, modularity),
+        numClauses,
+        solveCmdSeedDistr(m_rng));
   }
 
   virtual ~CommunityAttachmentGen() = default;
@@ -160,11 +183,13 @@ private:
   std::mt19937 m_rng;
   std::vector<int32_t> m_communityStampBuffer;
   std::vector<int32_t> m_variableStampBuffer;
+  CommunityAttachmentModelParams m_params;
 };
 }
 
-auto createCommunityAttachmentGen(uint32_t seed) -> std::unique_ptr<FuzzTraceGenerator>
+auto createCommunityAttachmentGen(CommunityAttachmentModelParams params)
+    -> std::unique_ptr<FuzzTraceGenerator>
 {
-  return std::make_unique<CommunityAttachmentGen>(seed);
+  return std::make_unique<CommunityAttachmentGen>(std::move(params));
 }
 }
