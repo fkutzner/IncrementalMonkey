@@ -34,7 +34,8 @@
 
 
 namespace incmonk {
-auto insertSolveCmds(FuzzTrace&& trace, CNFLit maxLit, uint64_t seed) -> FuzzTrace {
+auto insertSolveCmds(FuzzTrace&& trace, CNFLit maxLit, uint64_t seed) -> FuzzTrace
+{
   // TODO: configurable parameter distributions
 
   XorShiftRandomBitGenerator rng{seed};
@@ -49,7 +50,7 @@ auto insertSolveCmds(FuzzTrace&& trace, CNFLit maxLit, uint64_t seed) -> FuzzTra
 
   FuzzTrace result;
 
-  for(FuzzTrace::size_type idx = 0, end = trace.size(); idx < end; ++idx) {
+  for (FuzzTrace::size_type idx = 0, end = trace.size(); idx < end; ++idx) {
     result.push_back(std::move(trace[idx]));
     if (dist(rng) < assumeProb) {
       int32_t sign = (dist(rng) < 0.5 ? 1 : -1);

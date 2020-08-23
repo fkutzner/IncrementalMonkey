@@ -51,18 +51,20 @@ private:
   std::uint64_t m_state;
 };
 
-XorShiftRandomBitGenerator::XorShiftRandomBitGenerator(uint64_t seed) noexcept : m_state{seed} {
-}
+XorShiftRandomBitGenerator::XorShiftRandomBitGenerator(uint64_t seed) noexcept : m_state{seed} {}
 
-constexpr auto XorShiftRandomBitGenerator::min() -> result_type {
+constexpr auto XorShiftRandomBitGenerator::min() -> result_type
+{
   return std::numeric_limits<uint64_t>::min();
 }
 
-constexpr auto XorShiftRandomBitGenerator::max() -> result_type {
+constexpr auto XorShiftRandomBitGenerator::max() -> result_type
+{
   return std::numeric_limits<uint64_t>::max();
 }
 
-auto XorShiftRandomBitGenerator::operator()() noexcept -> result_type {
+auto XorShiftRandomBitGenerator::operator()() noexcept -> result_type
+{
   constexpr uint64_t mult = 2685821657736338717ull;
   m_state ^= m_state >> 12;
   m_state ^= m_state << 25;
