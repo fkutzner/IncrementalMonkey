@@ -83,7 +83,6 @@ auto main(int argc, char** argv) -> int
       fuzzerParams.roundsLimit = fuzzMaxRounds;
     }
     if (!fuzzTimeoutMillisOpt->empty()) {
-      std::cout << "with timeout\n";
       fuzzerParams.timeout = std::chrono::milliseconds{fuzzTimeoutMillis};
     }
     return incmonk::fuzzerMain(fuzzerParams);

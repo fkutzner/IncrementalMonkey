@@ -10,3 +10,6 @@
 [submodule "deps/ipasir"]
 	path = deps/ipasir
 	url = https://github.com/biotomas/ipasir
+[submodule "deps/tomlplusplus/tomlplusplus"]
+	path = deps/tomlplusplus/tomlplusplus
+	url = https://github.com/marzer/tomlplusplus

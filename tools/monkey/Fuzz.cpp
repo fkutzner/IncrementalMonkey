@@ -103,7 +103,8 @@ auto fuzzerMain(FuzzerParams const& params) -> int
   using namespace incmonk;
 
   std::string fuzzerID = params.fuzzerId.empty() ? createFuzzerID() : params.fuzzerId;
-  std::cout << "ID: " << fuzzerID << std::endl;
+  std::cout << "ID: " << fuzzerID << "\n";
+  std::cout << "Random seed: " << params.seed << std::endl;
 
   auto randomSatGen = createGiraldezLevyGen(params.seed);
   IPASIRSolverDSO ipasirDSO{params.fuzzedLibrary};

@@ -19,3 +19,8 @@ target_include_directories(deps_cms INTERFACE ${CRYPTOMINISAT5_INCLUDE_DIRS})
 
 add_library(deps_ipasir INTERFACE)
 target_include_directories(deps_ipasir INTERFACE "${CMAKE_CURRENT_LIST_DIR}/ipasir")
+
+add_library(deps_tomlxx INTERFACE)
+target_include_directories(deps_tomlxx INTERFACE "${CMAKE_CURRENT_LIST_DIR}/tomlplusplus")
+
+
