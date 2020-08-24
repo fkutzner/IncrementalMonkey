@@ -27,8 +27,10 @@
 #pragma once
 
 #include <libincmonk/FuzzTrace.h>
+#include <libincmonk/TBool.h>
 
 #include <memory>
+#include <vector>
 
 namespace incmonk {
 
@@ -44,6 +46,17 @@ public:
    * \brief Fills in the expected results in SolveCmd trace elements in [start, stop)
    */
   virtual void solve(FuzzTrace::iterator start, FuzzTrace::iterator stop) = 0;
+
+  /**
+   * \brief Checks whether the problem so far added to the oracle is satisfiable
+   *        under the assumptions `assumptions`.
+   * 
+   * \returns t_indet if the oracle could not determine satisfiability. Otherwise,
+   *          t_true if and only if `toCheck` satisfies the clauses so far added to
+   *          the oracle.
+   */
+  virtual auto probe(std::vector<CNFLit> const& assumptions) -> TBool = 0;
+
   virtual ~Oracle() = default;
 };
 
