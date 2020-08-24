@@ -66,6 +66,7 @@ public:
   void addClause(CNFClause const&) override {}
   void assume(std::vector<CNFLit> const&) override {}
   void configure(uint64_t) override {}
+  auto getValue(CNFLit lit) const noexcept -> TBool override { return t_indet; }
 
   virtual ~FakeIPASIRSolver() = default;
 

@@ -132,6 +132,8 @@ public:
 
   auto hasConfigureBeenCalled() const noexcept -> bool { return m_calledConfigure; }
 
+  auto getValue(CNFLit) const noexcept -> TBool override { return t_indet; }
+
 private:
   std::vector<IPASIRSolver::Result> m_solveResults;
   FuzzTrace m_recordedTrace;

@@ -106,6 +106,21 @@ public:
 
   auto getLastSolveResult() const noexcept -> Result override { return m_lastResult; }
 
+  auto getValue(CNFLit lit) const noexcept -> TBool
+  {
+    int value = m_dso.valFn(m_ipasirContext, lit);
+    switch (value) {
+    case 0:
+      return t_false;
+    case 10:
+      return t_true;
+    case 20:
+      return t_indet;
+    default:
+      abort();
+    }
+  }
+
   void configure(uint64_t) override
   {
     // Not implemented yet

@@ -26,6 +26,9 @@
 
 #pragma once
 
+#include <libincmonk/CNF.h>
+#include <libincmonk/TBool.h>
+
 #include <exception>
 #include <filesystem>
 #include <functional>
@@ -33,7 +36,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "CNF.h"
 
 namespace incmonk {
 
@@ -96,6 +98,7 @@ public:
 
   virtual auto solve() -> Result = 0;
   virtual auto getLastSolveResult() const noexcept -> Result = 0;
+  virtual auto getValue(CNFLit lit) const noexcept -> TBool = 0;
 
   virtual void configure(uint64_t value) = 0;
 
