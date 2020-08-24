@@ -44,7 +44,7 @@ struct CommunityAttachmentModelParams {
 /**
  * Trace generator based on:
  * 
- * Giráldez-Cru, Jesús, and Jordi Levy. "A modularity-based random SAT instances generator."
+ * Jesús Giráldez-Cru and Jordi Levy. "A modularity-based random SAT instances generator."
  * IJCAI'15: Proceedings of the 24th International Conference on Artificial Intelligence
  * 
  * For each generated trace, the community attachment parameters are chosen as follows:
