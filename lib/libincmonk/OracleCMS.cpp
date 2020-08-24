@@ -30,6 +30,12 @@
 
 namespace incmonk {
 namespace {
+
+auto cmLit(CNFLit lit) -> CMSat::Lit
+{
+  return CMSat::Lit{static_cast<uint32_t>(std::abs(lit)), lit < 0};
+}
+
 class OracleCMS : public Oracle {
 public:
   OracleCMS() {}
@@ -49,7 +55,7 @@ public:
 
     for (CNFLit lit : cmd.clauseToAdd) {
       ensureSolverHasEnoughVars(lit);
-      clause.push_back(CMSat::Lit{static_cast<uint32_t>(std::abs(lit)), lit < 0});
+      clause.push_back(cmLit(lit));
     }
 
     m_solver.add_clause(clause);
@@ -59,7 +65,7 @@ public:
   {
     for (CNFLit lit : cmd.assumptions) {
       ensureSolverHasEnoughVars(lit);
-      m_assumptions.push_back(CMSat::Lit{static_cast<uint32_t>(std::abs(lit)), lit < 0});
+      m_assumptions.push_back(cmLit(lit));
     }
   }
 
@@ -78,6 +84,22 @@ public:
   {
     for (FuzzTrace::iterator cmd = start; cmd != stop; ++cmd) {
       std::visit([this](auto&& x) { executeTraceCommand(x); }, *cmd);
+    }
+  }
+
+  auto probe(std::vector<CNFLit> const& assumptions) -> TBool override
+  {
+    std::vector<CMSat::Lit> cma;
+    std::transform(assumptions.begin(), assumptions.end(), std::back_inserter(cma), cmLit);
+    CMSat::lbool oracleResult = m_solver.solve(&cma);
+    if (oracleResult == CMSat::l_False) {
+      return t_false;
+    }
+    else if (oracleResult == CMSat::l_True) {
+      return t_true;
+    }
+    else {
+      return t_indet;
     }
   }
 

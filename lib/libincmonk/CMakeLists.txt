@@ -13,6 +13,7 @@ nm_add_library(libincmonk STATIC
   OracleCMS.cpp
   SolveCmdScheduler.cpp
   SolveCmdScheduler.h
+  TBool.h
 
   generators/CommunityAttachmentGenerator.cpp
   generators/CommunityAttachmentGenerator.h
