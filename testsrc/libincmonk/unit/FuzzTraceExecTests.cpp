@@ -67,6 +67,7 @@ public:
   void assume(std::vector<CNFLit> const&) override {}
   void configure(uint64_t) override {}
   auto getValue(CNFLit lit) const noexcept -> TBool override { return t_indet; }
+  auto isFailed(CNFLit lit) const noexcept -> bool override { return false; }
 
   virtual ~FakeIPASIRSolver() = default;
 

@@ -106,7 +106,7 @@ public:
 
   auto getLastSolveResult() const noexcept -> Result override { return m_lastResult; }
 
-  auto getValue(CNFLit lit) const noexcept -> TBool
+  auto getValue(CNFLit lit) const noexcept -> TBool override
   {
     int value = m_dso.valFn(m_ipasirContext, lit);
     switch (value) {
@@ -116,6 +116,19 @@ public:
       return t_true;
     case 20:
       return t_indet;
+    default:
+      abort();
+    }
+  }
+
+  auto isFailed(CNFLit lit) const noexcept -> bool override
+  {
+    int result = m_dso.failedFn(m_ipasirContext, lit);
+    switch (result) {
+    case 0:
+      return false;
+    case 1:
+      return true;
     default:
       abort();
     }
@@ -142,6 +155,7 @@ IPASIRSolverDSO::IPASIRSolverDSO(std::filesystem::path const& path)
   , assumeFn{checkedGetFn<IPASIRAssumeFn>(m_dsoContext.get(), "ipasir_assume")}
   , solveFn{checkedGetFn<IPASIRSolveFn>(m_dsoContext.get(), "ipasir_solve")}
   , valFn{checkedGetFn<IPASIRValFn>(m_dsoContext.get(), "ipasir_val")}
+  , failedFn{checkedGetFn<IPASIRFailedFn>(m_dsoContext.get(), "ipasir_failed")}
 {
 }
 

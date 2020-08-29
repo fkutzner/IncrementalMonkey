@@ -45,6 +45,7 @@ using IPASIRAddFn = std::add_pointer_t<void(void*, int)>;
 using IPASIRAssumeFn = std::add_pointer_t<void(void*, int)>;
 using IPASIRSolveFn = std::add_pointer_t<int(void*)>;
 using IPASIRValFn = std::add_pointer_t<int(void*, int)>;
+using IPASIRFailedFn = std::add_pointer_t<int(void*, int)>;
 
 class DSOLoadError : public std::runtime_error {
 public:
@@ -80,6 +81,7 @@ public:
   IPASIRAssumeFn const assumeFn = nullptr;
   IPASIRSolveFn const solveFn = nullptr;
   IPASIRValFn const valFn = nullptr;
+  IPASIRFailedFn const failedFn = nullptr;
 };
 
 
@@ -99,6 +101,7 @@ public:
   virtual auto solve() -> Result = 0;
   virtual auto getLastSolveResult() const noexcept -> Result = 0;
   virtual auto getValue(CNFLit lit) const noexcept -> TBool = 0;
+  virtual auto isFailed(CNFLit lit) const noexcept -> bool = 0;
 
   virtual void configure(uint64_t value) = 0;
 

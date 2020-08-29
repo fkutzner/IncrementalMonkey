@@ -134,6 +134,8 @@ public:
 
   auto getValue(CNFLit) const noexcept -> TBool override { return t_indet; }
 
+  auto isFailed(CNFLit lit) const noexcept -> bool override { return false; }
+
 private:
   std::vector<IPASIRSolver::Result> m_solveResults;
   FuzzTrace m_recordedTrace;
