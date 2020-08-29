@@ -1,5 +1,7 @@
 nm_add_library(libincmonk STATIC
   CNF.h
+  Config.cpp
+  Config.h
   FastRand.h
   Fork.h
   Fork.cpp
