@@ -32,6 +32,7 @@
 #include <filesystem>
 #include <iomanip>
 #include <sstream>
+#include <unordered_set>
 
 namespace incmonk {
 
@@ -46,24 +47,94 @@ auto analyzeResult(FuzzTrace::iterator phaseStart,
 {
   assert(std::get_if<SolveCmd>(&*phaseStop) != nullptr);
 
-  oracle.solve(phaseStart, phaseStop + 1);
-
-  SolveCmd const& solveCmd = std::get<SolveCmd>(*phaseStop);
   IPASIRSolver::Result lastResult = sut.getLastSolveResult();
-  bool const oracleHasVal = solveCmd.expectedResult.has_value();
+  if (lastResult == IPASIRSolver::Result::UNKNOWN ||
+      lastResult == IPASIRSolver::Result::ILLEGAL_RESULT) {
+    return std::make_optional(TraceExecutionFailure::Reason::INVALID_RESULT);
+  }
 
-  auto const incorrect = std::make_optional(TraceExecutionFailure::Reason::INCORRECT_RESULT);
-  switch (lastResult) {
-  case IPASIRSolver::Result::UNKNOWN:
-    return incorrect;
-  case IPASIRSolver::Result::ILLEGAL_RESULT:
-    return incorrect;
-  case IPASIRSolver::Result::SAT:
-    return (!oracleHasVal || *solveCmd.expectedResult) ? std::nullopt : incorrect;
-  case IPASIRSolver::Result::UNSAT:
-    return (!oracleHasVal || !(*solveCmd.expectedResult)) ? std::nullopt : incorrect;
-  default:
-    return std::nullopt;
+  // stop just before the solve call
+  oracle.solve(phaseStart, phaseStop);
+  SolveCmd& solveCmd = std::get<SolveCmd>(*phaseStop);
+
+  if (lastResult == IPASIRSolver::Result::SAT) {
+    std::vector<CNFLit> assumptions = oracle.getCurrentAssumptions();
+
+    // Check if all assumptions are heeded:
+    bool assumptionFailure = false;
+    for (auto assumption : assumptions) {
+      if (sut.getValue(assumption) != t_true) {
+        assumptionFailure = true;
+        break;
+      }
+    }
+
+    if (!assumptionFailure) {
+      // Check if the solver actually computed a model:
+      CNFLit maxLit = oracle.getMaxSeenLit();
+      std::vector<CNFLit> model;
+      model.reserve(maxLit);
+      for (CNFLit lit = 1; lit <= maxLit; ++lit) {
+        TBool val = sut.getValue(lit);
+        if (val != t_indet) {
+          model.push_back(lit * (val == t_true ? 1 : -1));
+        }
+      }
+
+      TBool probeResult = oracle.probe(model);
+      if (probeResult != t_false) {
+        solveCmd.expectedResult = true;
+        oracle.clearAssumptions();
+        return std::nullopt;
+      }
+    }
+
+    // The model is invalid. Check if this is actually a SAT/UNSAT flip:
+    oracle.solve(phaseStop, phaseStop + 1);
+    if (!solveCmd.expectedResult.has_value() || *(solveCmd.expectedResult)) {
+      return TraceExecutionFailure::Reason::INVALID_MODEL;
+    }
+    else {
+      return TraceExecutionFailure::Reason::INCORRECT_RESULT;
+    }
+  }
+  else {
+    assert(lastResult == IPASIRSolver::Result::UNSAT);
+
+    std::vector<CNFLit> assumptions = oracle.getCurrentAssumptions();
+    std::unordered_set<CNFLit> assumptionSet{assumptions.begin(), assumptions.end()};
+
+    CNFLit maxLit = oracle.getMaxSeenLit();
+    bool assumptionFailure = false;
+    std::vector<CNFLit> failed;
+    for (CNFLit posLit = 1; posLit <= maxLit; ++posLit) {
+      for (CNFLit lit : {posLit, -posLit}) {
+        if (sut.isFailed(lit)) {
+          if (assumptionSet.find(lit) == assumptionSet.end()) {
+            assumptionFailure = true;
+            break;
+          }
+          failed.push_back(lit);
+        }
+      }
+    }
+
+    if (!assumptionFailure) {
+      TBool probeResult = oracle.probe(failed);
+      if (probeResult != t_true) {
+        solveCmd.expectedResult = false;
+        oracle.clearAssumptions();
+        return std::nullopt;
+      }
+    }
+
+    oracle.solve(phaseStop, phaseStop + 1);
+    if (!solveCmd.expectedResult.has_value() || *(solveCmd.expectedResult) == false) {
+      return TraceExecutionFailure::Reason::INVALID_FAILED;
+    }
+    else {
+      return TraceExecutionFailure::Reason::INCORRECT_RESULT;
+    }
   }
 }
 }
@@ -102,12 +173,25 @@ auto createTraceFilename(std::string const& fuzzerID, int run, TraceExecutionFai
 {
   std::stringstream formatter;
   formatter << fuzzerID << "-" << std::setfill('0') << std::setw(6) << run;
-  if (kind == TraceExecutionFailure::Reason::INCORRECT_RESULT) {
-    formatter << "-incorrect.mtr";
+
+  switch (kind) {
+  case TraceExecutionFailure::Reason::INCORRECT_RESULT:
+    formatter << "-satflip.mtr";
+    break;
+  case TraceExecutionFailure::Reason::INVALID_MODEL:
+    formatter << "-invalidmodel.mtr";
+    break;
+  case TraceExecutionFailure::Reason::INVALID_FAILED:
+    formatter << "-invalidfailed.mtr";
+    break;
+  case TraceExecutionFailure::Reason::INVALID_RESULT:
+    formatter << "-invalidresult.mtr";
+    break;
+  default:
+    formatter << "-unknown.mtr";
+    break;
   }
-  else {
-    formatter << "-timeout.mtr";
-  }
+
   return formatter.str();
 }
 

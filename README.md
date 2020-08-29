@@ -12,7 +12,7 @@ interface (for instance `solver.so`) and run
 
 For each solver crash or failure to produce a correct result,
 `monkey` creates a file `monkey-<id>-<runNumber>-crashed.mtr`
-rsp. `monkey-<id>-<runNumber>-incorrect.mtr` in the current working
+rsp. `monkey-<id>-<runNumber>-<failureType>.mtr` in the current working
 directory. These files contain traces of IPASIR calls inducing the
 undesired behavior. Currently, `monkey` does not distinguish failures
 in `solver.so` from test oracle failures. If you suspect a test
@@ -38,7 +38,11 @@ prints `monkey-m01-crashed.mtr` as a C++11 function `foonction`.
 If the trace was dumped in a run where the test oracle rejected
 the tested solver's result, the `ipasir_solve` calls are equipped
 with assertions checking the result. In crash traces, oracle data
-is lost and no assertions are inserted.
+is lost and no assertions are inserted. In traces with failure
+type `invalidmodel` and `invalidfailed`, assertions checking the
+`ipasir_solve` call results are inserted, but the invalid model
+rsp. invalid failed assumption settings are not checked in the
+C++ program.
 
 ### Broken example solvers
 

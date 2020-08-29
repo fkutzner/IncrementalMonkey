@@ -37,6 +37,7 @@
 #include <gsl/gsl_util>
 
 #include <filesystem>
+#include <unordered_set>
 #include <vector>
 
 using ::testing::Eq;
@@ -45,9 +46,18 @@ namespace fs = std::filesystem;
 
 namespace incmonk {
 namespace {
+
+struct FakeResult {
+  IPASIRSolver::Result result;
+
+  // if result is SAT, modelOrFailed contains the model. If result is UNSAT,
+  // modelOrFailed contains the failed assertions. Otherwise, it is ignored.
+  std::vector<CNFLit> modelOrFailed;
+};
+
 class FakeIPASIRSolver : public IPASIRSolver {
 public:
-  FakeIPASIRSolver(std::vector<Result> const& fakedResults)
+  FakeIPASIRSolver(std::vector<FakeResult> const& fakedResults)
   {
     m_fakedResults.assign(fakedResults.rbegin(), fakedResults.rend());
   }
@@ -56,7 +66,18 @@ public:
   auto solve() -> Result override
   {
     assert(!m_fakedResults.empty());
-    m_lastResult = m_fakedResults.back();
+    FakeResult const& resultInfo = m_fakedResults.back();
+    m_lastResult = resultInfo.result;
+
+    m_model.clear();
+    m_failed.clear();
+    if (m_lastResult == Result::SAT) {
+      m_model.insert(resultInfo.modelOrFailed.begin(), resultInfo.modelOrFailed.end());
+    }
+    else if (m_lastResult == Result::UNSAT) {
+      m_failed.insert(resultInfo.modelOrFailed.begin(), resultInfo.modelOrFailed.end());
+    }
+
     m_fakedResults.pop_back();
     return m_lastResult;
   }
@@ -66,20 +87,39 @@ public:
   void addClause(CNFClause const&) override {}
   void assume(std::vector<CNFLit> const&) override {}
   void configure(uint64_t) override {}
-  auto getValue(CNFLit lit) const noexcept -> TBool override { return t_indet; }
-  auto isFailed(CNFLit lit) const noexcept -> bool override { return false; }
+
+  auto getValue(CNFLit lit) const noexcept -> TBool override
+  {
+    if (m_model.find(lit) != m_model.end()) {
+      return t_true;
+    }
+    if (m_model.find(-lit) != m_model.end()) {
+      return t_false;
+    }
+    return t_indet;
+  }
+
+  auto isFailed(CNFLit lit) const noexcept -> bool override
+  {
+    return m_failed.find(lit) != m_failed.end();
+  }
 
   virtual ~FakeIPASIRSolver() = default;
 
 private:
-  std::vector<Result> m_fakedResults;
+  std::vector<FakeResult> m_fakedResults;
+
+  std::unordered_set<CNFLit> m_model;
+  std::unordered_set<CNFLit> m_failed;
+
+
   Result m_lastResult = Result::UNKNOWN;
 };
 
 // clang-format off
 using FuzzTraceExecTests_executeTrace_param = std::tuple<
   FuzzTrace,  // The input trace
-  std::vector<IPASIRSolver::Result>, // The sequence of IPASIR solve() results wrt. FuzzTrace
+  std::vector<FakeResult>, // The sequence of IPASIR solve() results wrt. FuzzTrace
   std::optional<std::size_t>, // The expected index of the first failing solve command within the trace
   std::optional<TraceExecutionFailure::Reason> // The expected failure reason, if any
 >;
@@ -93,10 +133,7 @@ public:
 
   auto getInputTrace() const -> FuzzTrace { return std::get<0>(GetParam()); }
 
-  auto getIPASIRResults() const -> std::vector<IPASIRSolver::Result>
-  {
-    return std::get<1>(GetParam());
-  }
+  auto getIPASIRResults() const -> std::vector<FakeResult> { return std::get<1>(GetParam()); }
 
   auto getFailureIndex() const -> std::optional<std::size_t> { return std::get<2>(GetParam()); }
 
@@ -129,7 +166,7 @@ TEST_P(FuzzTraceExecTests_executeTrace, TestSuite)
   }
 }
 
-using IRVec = std::vector<IPASIRSolver::Result>;
+using IRVec = std::vector<FakeResult>;
 
 // clang-format off
 INSTANTIATE_TEST_SUITE_P(, FuzzTraceExecTests_executeTrace,
@@ -144,7 +181,7 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceExecTests_executeTrace,
         SolveCmd{}
       },
       IRVec {
-        IPASIRSolver::Result::SAT
+        {IPASIRSolver::Result::SAT, {1, 5}}
       },
       std::nullopt, std::nullopt
     ),
@@ -157,22 +194,7 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceExecTests_executeTrace,
         SolveCmd{}
       },
       IRVec {
-        IPASIRSolver::Result::UNSAT
-      },
-      std::nullopt, std::nullopt
-    ),
-
-    std::make_tuple(
-      FuzzTrace {
-        AddClauseCmd{{1, 2}},
-        AddClauseCmd{{-2, -1}},
-        SolveCmd{},
-        AssumeCmd{{1, 2}},
-        SolveCmd{}
-      },
-      IRVec {
-        IPASIRSolver::Result::SAT,
-        IPASIRSolver::Result::UNSAT
+        {IPASIRSolver::Result::UNSAT, {1, 2}}
       },
       std::nullopt, std::nullopt
     ),
@@ -186,8 +208,23 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceExecTests_executeTrace,
         SolveCmd{}
       },
       IRVec {
-        IPASIRSolver::Result::UNSAT,
-        IPASIRSolver::Result::UNSAT
+        {IPASIRSolver::Result::SAT, {1, -2}},
+        {IPASIRSolver::Result::UNSAT, {1, 2}}
+      },
+      std::nullopt, std::nullopt
+    ),
+
+    std::make_tuple(
+      FuzzTrace {
+        AddClauseCmd{{1, 2}},
+        AddClauseCmd{{-2, -1}},
+        SolveCmd{},
+        AssumeCmd{{1, 2}},
+        SolveCmd{}
+      },
+      IRVec {
+        {IPASIRSolver::Result::UNSAT, {1, 2}},
+        {IPASIRSolver::Result::UNSAT, {1, 2}}
       },
       2, TraceExecutionFailure::Reason::INCORRECT_RESULT
     ),
@@ -201,8 +238,53 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceExecTests_executeTrace,
         SolveCmd{}
       },
       IRVec {
-        IPASIRSolver::Result::SAT,
-        IPASIRSolver::Result::SAT
+        {IPASIRSolver::Result::SAT, {1, -2}},
+        {IPASIRSolver::Result::UNSAT, {-1, 2}}
+      },
+      4, TraceExecutionFailure::Reason::INVALID_FAILED
+    ),
+
+    std::make_tuple(
+      FuzzTrace {
+        AddClauseCmd{{1, 2}},
+        AddClauseCmd{{-2, -1}},
+        SolveCmd{},
+        AssumeCmd{{1, 2}},
+        SolveCmd{}
+      },
+      IRVec {
+        {IPASIRSolver::Result::SAT, {1, -2}},
+        {IPASIRSolver::Result::UNSAT, {2}}
+      },
+      4, TraceExecutionFailure::Reason::INVALID_FAILED
+    ),
+
+    std::make_tuple(
+      FuzzTrace {
+        AddClauseCmd{{1, 2}},
+        AddClauseCmd{{-2, -1}},
+        SolveCmd{},
+        AssumeCmd{{1, 2}},
+        SolveCmd{}
+      },
+      IRVec {
+        {IPASIRSolver::Result::UNSAT, {1, 2}},
+        {IPASIRSolver::Result::UNSAT, {-1, 2}}
+      },
+      2, TraceExecutionFailure::Reason::INCORRECT_RESULT
+    ),
+
+    std::make_tuple(
+      FuzzTrace {
+        AddClauseCmd{{1, 2}},
+        AddClauseCmd{{-2, -1}},
+        SolveCmd{},
+        AssumeCmd{{1, 2}},
+        SolveCmd{}
+      },
+      IRVec {
+        {IPASIRSolver::Result::SAT, {1, -2}},
+        {IPASIRSolver::Result::SAT, {1, -2}}
       },
       4, TraceExecutionFailure::Reason::INCORRECT_RESULT
     ),
@@ -216,8 +298,39 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceExecTests_executeTrace,
         SolveCmd{}
       },
       IRVec {
-        IPASIRSolver::Result::SAT,
-        IPASIRSolver::Result::UNKNOWN
+        {IPASIRSolver::Result::SAT, {1, 2}},
+        {IPASIRSolver::Result::UNSAT, {1, 2}}
+      },
+      2, TraceExecutionFailure::Reason::INVALID_MODEL
+    ),
+
+    std::make_tuple(
+      FuzzTrace {
+        AddClauseCmd{{1, 2}},
+        AddClauseCmd{{-2, -1}},
+        AssumeCmd{{1}},
+        SolveCmd{},
+        AssumeCmd{{1, 2}},
+        SolveCmd{}
+      },
+      IRVec {
+        {IPASIRSolver::Result::SAT, {-1, 2}},
+        {IPASIRSolver::Result::UNSAT, {1, 2}}
+      },
+      3, TraceExecutionFailure::Reason::INVALID_MODEL
+    ),
+
+    std::make_tuple(
+      FuzzTrace {
+        AddClauseCmd{{1, 2}},
+        AddClauseCmd{{-2, -1}},
+        SolveCmd{},
+        AssumeCmd{{1, 2}},
+        SolveCmd{}
+      },
+      IRVec {
+        {IPASIRSolver::Result::SAT, {1, -2}},
+        {IPASIRSolver::Result::SAT, {1, 2}}
       },
       4, TraceExecutionFailure::Reason::INCORRECT_RESULT
     ),
@@ -231,10 +344,25 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceExecTests_executeTrace,
         SolveCmd{}
       },
       IRVec {
-        IPASIRSolver::Result::SAT,
-        IPASIRSolver::Result::ILLEGAL_RESULT
+        {IPASIRSolver::Result::SAT, {1, -2}},
+        {IPASIRSolver::Result::UNKNOWN, {}}
       },
-      4, TraceExecutionFailure::Reason::INCORRECT_RESULT
+      4, TraceExecutionFailure::Reason::INVALID_RESULT
+    ),
+
+    std::make_tuple(
+      FuzzTrace {
+        AddClauseCmd{{1, 2}},
+        AddClauseCmd{{-2, -1}},
+        SolveCmd{},
+        AssumeCmd{{1, 2}},
+        SolveCmd{}
+      },
+      IRVec {
+        {IPASIRSolver::Result::SAT, {1, -2}},
+        {IPASIRSolver::Result::ILLEGAL_RESULT, {}}
+      },
+      4, TraceExecutionFailure::Reason::INVALID_RESULT
     )
 
   )
@@ -250,8 +378,14 @@ TEST(FuzzTraceExecTests_executeTraceWithDump, WhenExecutionSucceeds_NoTraceIsWri
                        SolveCmd{},
                        AssumeCmd{{1, 2}},
                        SolveCmd{}};
+
+  // clang-format off
   FakeIPASIRSolver fakeSut{
-      {IPASIRSolver::Result::SAT, IPASIRSolver::Result::SAT, IPASIRSolver::Result::UNSAT}};
+      {{IPASIRSolver::Result::SAT, {-1, 2}},
+       {IPASIRSolver::Result::SAT, {1, -2}},
+       {IPASIRSolver::Result::UNSAT, {1, 2}}}
+  };
+  // clang-format on
 
   fs::path originalCwd = fs::current_path();
   fs::current_path(tempDir.getPath());
@@ -268,9 +402,8 @@ TEST(FuzzTraceExecTests_executeTraceWithDump, WhenExecutionSucceeds_NoTraceIsWri
   EXPECT_TRUE(std::filesystem::is_empty(tempDir.getPath()));
 }
 
-
 namespace {
-void runTraceDumpTest(IPASIRSolver::Result failingResult)
+void runTraceDumpTest(FakeResult failingResult, std::string expectedFilenameSuffix)
 {
   PathWithDeleter tempDir = createTempDir();
 
@@ -281,9 +414,16 @@ void runTraceDumpTest(IPASIRSolver::Result failingResult)
                        AssumeCmd{{1, 2}},
                        SolveCmd{}};
 
-  FakeIPASIRSolver fakeSut{{IPASIRSolver::Result::SAT, failingResult, IPASIRSolver::Result::UNSAT}};
+  // clang-format off
+  FakeIPASIRSolver fakeSut{
+      {{IPASIRSolver::Result::SAT, {-1, 2}},
+       {IPASIRSolver::Result::SAT, {1, -2}},
+       failingResult}
+  };
+  // clang-format on
 
-  fs::path expectedFilename = tempDir.getPath() / "incmonk-test-000512-incorrect.mtr";
+  fs::path expectedFilename =
+      tempDir.getPath() / ("incmonk-test-000512-" + expectedFilenameSuffix + ".mtr");
 
   fs::path originalCwd = fs::current_path();
   fs::current_path(tempDir.getPath());
@@ -299,16 +439,21 @@ void runTraceDumpTest(IPASIRSolver::Result failingResult)
   std::optional<TraceExecutionFailure> result =
       executeTraceWithDump(inputTrace.begin(), inputTrace.end(), fakeSut, "incmonk-test", 512);
 
-  ASSERT_TRUE(result.has_value() &&
-              result->reason == TraceExecutionFailure::Reason::INCORRECT_RESULT);
+  ASSERT_TRUE(result.has_value());
   ASSERT_TRUE(fs::exists(expectedFilename));
 
-  FuzzTrace expectedWrittenTrace{
-      AddClauseCmd{{1, 2}},
-      AddClauseCmd{{-2, -1}},
-      SolveCmd{true},
-      SolveCmd{true},
-  };
+  SolveCmd expectedFinalCmd;
+  if (result->reason != TraceExecutionFailure::Reason::INVALID_RESULT &&
+      result->reason != TraceExecutionFailure::Reason::TIMEOUT) {
+    expectedFinalCmd.expectedResult = false;
+  }
+
+  FuzzTrace expectedWrittenTrace{AddClauseCmd{{1, 2}},
+                                 AddClauseCmd{{-2, -1}},
+                                 SolveCmd{true},
+                                 SolveCmd{true},
+                                 AssumeCmd{{1, 2}},
+                                 expectedFinalCmd};
 
   FuzzTrace actualWrittenTrace = loadTrace(expectedFilename);
 
@@ -318,16 +463,22 @@ void runTraceDumpTest(IPASIRSolver::Result failingResult)
 
 TEST(FuzzTraceExecTests_executeTraceWithDump, WhenExecutionYieldsIncorrect_TraceIsWritten)
 {
-  runTraceDumpTest(IPASIRSolver::Result::UNSAT);
+  runTraceDumpTest({IPASIRSolver::Result::SAT, {1, 2}}, "satflip");
+}
+
+TEST(FuzzTraceExecTests_executeTraceWithDump, WhenExecutionYieldsInvalidFailed_TraceIsWritten)
+{
+  runTraceDumpTest({IPASIRSolver::Result::UNSAT, {-1, 2}}, "invalidfailed");
 }
 
 TEST(FuzzTraceExecTests_executeTraceWithDump, WhenExecutionYieldsIllegalResult_TraceIsWritten)
 {
-  runTraceDumpTest(IPASIRSolver::Result::ILLEGAL_RESULT);
+  runTraceDumpTest({IPASIRSolver::Result::ILLEGAL_RESULT, {}}, "invalidresult");
 }
 
 TEST(FuzzTraceExecTests_executeTraceWithDump, WhenExecutionYieldsUnknown_TraceIsWritten)
 {
-  runTraceDumpTest(IPASIRSolver::Result::UNKNOWN);
+  runTraceDumpTest({IPASIRSolver::Result::UNKNOWN, {}}, "invalidresult");
 }
+
 }

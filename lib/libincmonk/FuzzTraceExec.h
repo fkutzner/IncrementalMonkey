@@ -35,7 +35,23 @@
 namespace incmonk {
 
 struct TraceExecutionFailure {
-  enum class Reason { INCORRECT_RESULT, TIMEOUT };
+  enum class Reason {
+    /// The solver under test returned neither SAT nor UNSAT
+    INVALID_RESULT,
+
+    /// SAT/UNSAT flip
+    INCORRECT_RESULT,
+
+    /// No SAT/UNSAT flip, but the model produced by the solver does not satisfy the formula
+    /// or assumptions are not set to true
+    INVALID_MODEL,
+
+    /// No SAT/UNSAT flip, but the problem is satisfiable under exclusive assumption of the
+    /// `ipasir_failed` literals
+    INVALID_FAILED,
+
+    TIMEOUT
+  };
   Reason reason;
   FuzzTrace::iterator solveCmd;
 };
@@ -61,7 +77,8 @@ auto executeTrace(FuzzTrace::iterator start, FuzzTrace::iterator stop, IPASIRSol
  * \param runID           The (arbitrary) ID of the execution.
  * 
  * On failure, a file named `filenamePrefix`-`runID`-<X>.mtr is written to the current
- * working directory, with <X> being either `incorrect` or `missingresult`.
+ * working directory, with <X> being one of `satflip`, `invalidmodel`, `invalidfailed`,
+ * `invalidresult` or `unknown`.
  * 
  * \returns see `executeTrace()`
  */

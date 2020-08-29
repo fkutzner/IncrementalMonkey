@@ -37,9 +37,13 @@ class TBool {
 public:
   constexpr TBool() : m_value{0} {}
 
-  constexpr auto operator==(TBool const& rhs) { return this == &rhs || m_value == rhs.m_value; }
+  constexpr auto operator==(TBool const& rhs) const noexcept
+  {
+    return this == &rhs || m_value == rhs.m_value;
+  }
+  constexpr auto operator!=(TBool const& rhs) const noexcept { return !(*this == rhs); }
 
-  constexpr auto operator!() -> TBool { return TBool{static_cast<int8_t>(-m_value)}; }
+  constexpr auto operator!() const -> TBool { return TBool{static_cast<int8_t>(-m_value)}; }
 
   static constexpr auto createTrue() -> TBool { return TBool{1}; }
 
