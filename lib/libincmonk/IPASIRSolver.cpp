@@ -109,14 +109,17 @@ public:
   auto getValue(CNFLit lit) const noexcept -> TBool override
   {
     int value = m_dso.valFn(m_ipasirContext, lit);
-    switch (value) {
-    case 0:
-      return t_false;
-    case 10:
+
+    if (value == lit) {
       return t_true;
-    case 20:
+    }
+    else if (value == -lit) {
+      return t_false;
+    }
+    else if (value == 0) {
       return t_indet;
-    default:
+    }
+    else {
       abort();
     }
   }
