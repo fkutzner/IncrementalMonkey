@@ -33,7 +33,8 @@
 #include <vector>
 
 #include <signal.h>
-
+#include <unordered_map>
+#include <unordered_set>
 
 namespace {
 
@@ -92,18 +93,49 @@ public:
     }
   }
 
+  void saveModel()
+  {
+    std::vector<CMSat::lbool> cmModel = m_solver.get_model();
+    for (int i = 0; i < m_numVars; ++i) {
+      int val = 0;
+      if (cmModel[i] == CMSat::l_True) {
+        val = i;
+      }
+      else if (cmModel[i] == CMSat::l_False) {
+        val = -i;
+      }
+      m_model[i] = val;
+    }
+  }
+
+  void saveConflict()
+  {
+    std::vector<CMSat::Lit> const conflict = m_solver.get_conflict();
+    for (CMSat::Lit failedAssumption : conflict) {
+      int var = static_cast<int>(failedAssumption.var());
+      var *= (failedAssumption.sign() ? -1 : 1);
+      m_conflict.insert(var);
+    }
+  }
+
   int solve() noexcept
   {
+    m_model.clear();
+    m_conflict.clear();
+
     if (m_invalid) {
       return 0;
     }
 
     try {
       CMSat::lbool result = m_solver.solve(&m_assumptionBuf);
+      m_assumptionBuf.clear();
       if (result == CMSat::l_False) {
+        saveConflict();
         return 20;
       }
       if (result == CMSat::l_True) {
+        saveModel();
         return 10;
       }
       return 0;
@@ -114,17 +146,9 @@ public:
     }
   }
 
-  int val(int lit) noexcept
-  {
-    // not supported yet
-    return 0;
-  }
+  int val(int lit) noexcept { return m_model[std::abs(lit)]; }
 
-  int failed(int lit) noexcept
-  {
-    // not supported yet
-    return 0;
-  }
+  int failed(int lit) noexcept { return m_conflict.find(lit) != m_conflict.end() ? 1 : 0; }
 
 private:
   void ensureSolverHasEnoughVars(int toAdd)
@@ -132,8 +156,8 @@ private:
     uint32_t var = std::abs(toAdd);
     if (var + 1 > m_numVars) {
       m_solver.new_vars(var + 1 - m_numVars);
+      m_numVars += (var + 1 - m_numVars);
     }
-    m_numVars += (var + 1 - m_numVars);
   }
 
   CMSat::SATSolver m_solver;
@@ -141,6 +165,9 @@ private:
   std::vector<CMSat::Lit> m_assumptionBuf;
   std::vector<CMSat::Lit> m_clauseBuf;
   int m_numVars = 0;
+
+  std::unordered_map<int, int> m_model; // ipasirLit -> {ipasirLit, -ipasirLit, 0}
+  std::unordered_set<int> m_conflict;
 
   std::optional<std::mt19937> m_rng;
   std::uniform_real_distribution<double> m_faultDistr{0.0, 1.0};
