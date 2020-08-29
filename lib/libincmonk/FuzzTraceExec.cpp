@@ -40,6 +40,90 @@ namespace {
 
 using Analysis = std::optional<TraceExecutionFailure::Reason>;
 
+auto analyzeSatResult(FuzzTrace::iterator phaseStop, IPASIRSolver& sut, Oracle& oracle) -> Analysis
+{
+  std::vector<CNFLit> assumptions = oracle.getCurrentAssumptions();
+
+  // Check if all assumptions are heeded:
+  bool assumptionFailure = false;
+  for (auto assumption : assumptions) {
+    TBool const assumptionVal = sut.getValue(assumption);
+    if (assumptionVal != t_true) {
+      assumptionFailure = true;
+      break;
+    }
+  }
+
+  SolveCmd& solveCmd = std::get<SolveCmd>(*phaseStop);
+  if (!assumptionFailure) {
+    // Check if the solver actually computed a model:
+    CNFLit maxLit = oracle.getMaxSeenLit();
+    std::vector<CNFLit> model;
+    model.reserve(maxLit);
+    for (CNFLit lit = 1; lit <= maxLit; ++lit) {
+      TBool val = sut.getValue(lit);
+      if (val != t_indet) {
+        model.push_back(lit * (val == t_true ? 1 : -1));
+      }
+    }
+
+    // TODO: check the clauses occurring in the trace
+    //   when there are variables without assignment
+    TBool probeResult = oracle.probe(model);
+    if (probeResult != t_false) {
+      solveCmd.expectedResult = true;
+      oracle.clearAssumptions();
+      return std::nullopt;
+    }
+  }
+
+  // The model is invalid. Check if this is actually a SAT/UNSAT flip:
+  oracle.solve(phaseStop, phaseStop + 1);
+  if (!solveCmd.expectedResult.has_value()) {
+    return std::nullopt;
+  }
+
+  if (*(solveCmd.expectedResult)) {
+    return TraceExecutionFailure::Reason::INVALID_MODEL;
+  }
+  else {
+    return TraceExecutionFailure::Reason::INCORRECT_RESULT;
+  }
+}
+
+auto analyzeUnsatResult(FuzzTrace::iterator phaseStop, IPASIRSolver& sut, Oracle& oracle)
+    -> Analysis
+{
+  std::vector<CNFLit> assumptions = oracle.getCurrentAssumptions();
+
+  std::vector<CNFLit> failed;
+  for (CNFLit assumption : assumptions) {
+    if (sut.isFailed(assumption)) {
+      failed.push_back(assumption);
+    }
+  }
+
+  SolveCmd& solveCmd = std::get<SolveCmd>(*phaseStop);
+  TBool probeResult = oracle.probe(failed);
+  if (probeResult != t_true) {
+    solveCmd.expectedResult = false;
+    oracle.clearAssumptions();
+    return std::nullopt;
+  }
+
+  oracle.solve(phaseStop, phaseStop + 1);
+  if (!solveCmd.expectedResult.has_value()) {
+    return std::nullopt;
+  }
+
+  if (*(solveCmd.expectedResult) == false) {
+    return TraceExecutionFailure::Reason::INVALID_FAILED;
+  }
+  else {
+    return TraceExecutionFailure::Reason::INCORRECT_RESULT;
+  }
+}
+
 auto analyzeResult(FuzzTrace::iterator phaseStart,
                    FuzzTrace::iterator phaseStop,
                    IPASIRSolver& sut,
@@ -55,86 +139,13 @@ auto analyzeResult(FuzzTrace::iterator phaseStart,
 
   // stop just before the solve call
   oracle.solve(phaseStart, phaseStop);
-  SolveCmd& solveCmd = std::get<SolveCmd>(*phaseStop);
 
   if (lastResult == IPASIRSolver::Result::SAT) {
-    std::vector<CNFLit> assumptions = oracle.getCurrentAssumptions();
-
-    // Check if all assumptions are heeded:
-    bool assumptionFailure = false;
-    for (auto assumption : assumptions) {
-      if (sut.getValue(assumption) != t_true) {
-        assumptionFailure = true;
-        break;
-      }
-    }
-
-    if (!assumptionFailure) {
-      // Check if the solver actually computed a model:
-      CNFLit maxLit = oracle.getMaxSeenLit();
-      std::vector<CNFLit> model;
-      model.reserve(maxLit);
-      for (CNFLit lit = 1; lit <= maxLit; ++lit) {
-        TBool val = sut.getValue(lit);
-        if (val != t_indet) {
-          model.push_back(lit * (val == t_true ? 1 : -1));
-        }
-      }
-
-      TBool probeResult = oracle.probe(model);
-      if (probeResult != t_false) {
-        solveCmd.expectedResult = true;
-        oracle.clearAssumptions();
-        return std::nullopt;
-      }
-    }
-
-    // The model is invalid. Check if this is actually a SAT/UNSAT flip:
-    oracle.solve(phaseStop, phaseStop + 1);
-    if (!solveCmd.expectedResult.has_value() || *(solveCmd.expectedResult)) {
-      return TraceExecutionFailure::Reason::INVALID_MODEL;
-    }
-    else {
-      return TraceExecutionFailure::Reason::INCORRECT_RESULT;
-    }
+    return analyzeSatResult(phaseStop, sut, oracle);
   }
   else {
     assert(lastResult == IPASIRSolver::Result::UNSAT);
-
-    std::vector<CNFLit> assumptions = oracle.getCurrentAssumptions();
-    std::unordered_set<CNFLit> assumptionSet{assumptions.begin(), assumptions.end()};
-
-    CNFLit maxLit = oracle.getMaxSeenLit();
-    bool assumptionFailure = false;
-    std::vector<CNFLit> failed;
-    for (CNFLit posLit = 1; posLit <= maxLit; ++posLit) {
-      for (CNFLit lit : {posLit, -posLit}) {
-        if (sut.isFailed(lit)) {
-          if (assumptionSet.find(lit) == assumptionSet.end()) {
-            assumptionFailure = true;
-            break;
-          }
-          failed.push_back(lit);
-        }
-      }
-    }
-
-    if (!assumptionFailure) {
-      TBool probeResult = oracle.probe(failed);
-      if (probeResult != t_true) {
-        solveCmd.expectedResult = false;
-        oracle.clearAssumptions();
-        return std::nullopt;
-      }
-    }
-
-    oracle.solve(phaseStop, phaseStop + 1);
-    if (!solveCmd.expectedResult.has_value() || *(solveCmd.expectedResult) == false) {
-      return TraceExecutionFailure::Reason::INVALID_FAILED;
-    }
-    else {
-      return TraceExecutionFailure::Reason::INCORRECT_RESULT;
-    }
+    return analyzeUnsatResult(phaseStop, sut, oracle);
   }
 }
 }
