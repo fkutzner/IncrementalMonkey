@@ -28,12 +28,20 @@
 
 #include <cryptominisat5/cryptominisat.h>
 
+#include <map>
+
 namespace incmonk {
 namespace {
 
-auto cmLit(CNFLit lit) -> CMSat::Lit
+auto cmLit(CNFLit lit) noexcept -> CMSat::Lit
 {
   return CMSat::Lit{static_cast<uint32_t>(std::abs(lit)), lit < 0};
+}
+
+auto cnfLit(CMSat::Lit lit) noexcept -> CNFLit
+{
+  int rawLit = lit.toInt();
+  return (rawLit >> 1) * ((rawLit & 1) == 0 ? 1 : -1);
 }
 
 class OracleCMS : public Oracle {
@@ -102,6 +110,25 @@ public:
       return t_indet;
     }
   }
+
+  auto getCurrentAssumptions() const -> std::vector<CNFLit> override
+  {
+    std::map<CNFLit, CNFLit> lastSeen; // var -> cnflit; order matters for determinism
+    for (CMSat::Lit assumption : m_assumptions) {
+      CNFLit asLit = cnfLit(assumption);
+      lastSeen[std::abs(asLit)] = asLit;
+    }
+
+    std::vector<CNFLit> result;
+    for (const auto& [var, assumption] : lastSeen) {
+      result.push_back(assumption);
+    }
+    return result;
+  }
+
+  auto getMaxSeenLit() const -> CNFLit override { return static_cast<int>(m_numVars); }
+
+  void clearAssumptions() override { m_assumptions.clear(); }
 
   ~OracleCMS() = default;
 

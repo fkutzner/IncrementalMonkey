@@ -57,6 +57,26 @@ public:
    */
   virtual auto probe(std::vector<CNFLit> const& assumptions) -> TBool = 0;
 
+
+  /**
+   * \brief Returns the assumptions that would be used in the next solve call.
+   * 
+   * \returns The assumptions as described above. The variables contained in the result
+   *   are distinct.
+   */
+  virtual auto getCurrentAssumptions() const -> std::vector<CNFLit> = 0;
+
+
+  /**
+   * \brief Returns the maxium variable so far seen in trace clauses or assumptions.
+   */
+  virtual auto getMaxSeenLit() const -> CNFLit = 0;
+
+  /**
+   * \brief Clears the assumptions that would be used in the next solve call.
+   */
+  virtual void clearAssumptions() = 0;
+
   virtual ~Oracle() = default;
 };
 
