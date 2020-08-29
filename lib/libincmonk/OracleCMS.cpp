@@ -53,8 +53,8 @@ public:
     uint32_t var = std::abs(toAdd);
     if (var + 1 > m_numVars) {
       m_solver.new_vars(var + 1 - m_numVars);
+      m_numVars += (var + 1 - m_numVars);
     }
-    m_numVars += (var + 1 - m_numVars);
   }
 
   void executeTraceCommand(AddClauseCmd const& cmd)
@@ -97,6 +97,10 @@ public:
 
   auto probe(std::vector<CNFLit> const& assumptions) -> TBool override
   {
+    for (CNFLit lit : assumptions) {
+      ensureSolverHasEnoughVars(lit);
+    }
+
     std::vector<CMSat::Lit> cma;
     std::transform(assumptions.begin(), assumptions.end(), std::back_inserter(cma), cmLit);
     CMSat::lbool oracleResult = m_solver.solve(&cma);
@@ -113,16 +117,8 @@ public:
 
   auto getCurrentAssumptions() const -> std::vector<CNFLit> override
   {
-    std::map<CNFLit, CNFLit> lastSeen; // var -> cnflit; order matters for determinism
-    for (CMSat::Lit assumption : m_assumptions) {
-      CNFLit asLit = cnfLit(assumption);
-      lastSeen[std::abs(asLit)] = asLit;
-    }
-
     std::vector<CNFLit> result;
-    for (const auto& [var, assumption] : lastSeen) {
-      result.push_back(assumption);
-    }
+    std::transform(m_assumptions.begin(), m_assumptions.end(), std::back_inserter(result), cnfLit);
     return result;
   }
 
