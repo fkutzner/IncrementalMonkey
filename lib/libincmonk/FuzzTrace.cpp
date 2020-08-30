@@ -120,14 +120,9 @@ auto applyCmd(IPASIRSolver& solver, AssumeCmd const& cmd) -> bool
   return true;
 }
 
-auto applyCmd(IPASIRSolver& solver, SolveCmd const& cmd) -> bool
+auto applyCmd(IPASIRSolver& solver, SolveCmd const&) -> bool
 {
-  IPASIRSolver::Result result = solver.solve();
-
-  if (cmd.expectedResult.has_value()) {
-    bool const isSat = (result == IPASIRSolver::Result::SAT);
-    return *(cmd.expectedResult) == isSat;
-  }
+  solver.solve();
   return false;
 }
 }
@@ -139,9 +134,9 @@ auto applyTrace(FuzzTrace::const_iterator first,
   FuzzTrace::const_iterator cmd = first;
 
   for (; cmd != last; ++cmd) {
-    bool succeded = true;
-    std::visit([&target, &succeded](auto&& x) { succeded = applyCmd(target, x); }, *cmd);
-    if (!succeded) {
+    bool doContinue = true;
+    std::visit([&target, &doContinue](auto&& x) { doContinue = applyCmd(target, x); }, *cmd);
+    if (!doContinue) {
       break;
     }
   }
