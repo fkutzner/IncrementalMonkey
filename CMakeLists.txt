@@ -83,6 +83,15 @@ install(
   ARCHIVE DESTINATION lib
 )
 
+install(
+  FILES
+    ${CMAKE_CURRENT_LIST_DIR}/LICENSE
+    ${CMAKE_CURRENT_LIST_DIR}/LICENSES-3rdParty
+    ${CMAKE_CURRENT_LIST_DIR}/README.md
+  DESTINATION
+    share/doc/${INCMONK_PKG_NAME}
+)
+
 # Generate and install CMake scripts for find_package
 install(EXPORT ${INCMONK_PKG_NAME}
         DESTINATION lib/cmake/${INCMONK_PKG_NAME}
