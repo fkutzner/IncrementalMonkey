@@ -25,5 +25,5 @@ nm_add_library(libincmonk STATIC
 )
 
 target_include_directories(libincmonk PUBLIC ${PROJECT_SOURCE_DIR}/lib)
-target_link_libraries(libincmonk PRIVATE deps_gsl deps_cms deps_tomlxx)
+target_link_libraries(libincmonk PRIVATE deps_gsl deps_cms deps_tomlxx deps_dl)
 set_property(TARGET libincmonk PROPERTY OUTPUT_NAME incmonk)

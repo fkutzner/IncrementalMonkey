@@ -23,4 +23,8 @@ target_include_directories(deps_ipasir INTERFACE "${CMAKE_CURRENT_LIST_DIR}/ipas
 add_library(deps_tomlxx INTERFACE)
 target_include_directories(deps_tomlxx INTERFACE "${CMAKE_CURRENT_LIST_DIR}/tomlplusplus")
 
+add_library(deps_dl INTERFACE)
+if ("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+  target_link_libraries(deps_dl INTERFACE dl)
+endif()
 
