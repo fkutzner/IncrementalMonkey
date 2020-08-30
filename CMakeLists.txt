@@ -40,6 +40,19 @@ nm_enforce_lang_standard_adherence()
 nm_use_high_compiler_warning_level()
 
 
+### Linker options
+if(APPLE)
+  set(CMAKE_MACOSX_RPATH ON)
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+  # See https://gitlab.kitware.com/cmake/community/wikis/doc/cmake/RPATH-handling
+  list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+  if("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+  endif()
+endif()
+
+
 ### Build dependencies
 add_subdirectory(deps)
 
@@ -50,7 +63,6 @@ add_subdirectory(tools)
 
 
 ### Testing
-
 nm_add_gtest()
 enable_testing()
 add_subdirectory(testsrc)
@@ -58,3 +70,20 @@ add_subdirectory(testsrc)
 
 nm_add_doxygen()
 include(etc/cmake/HelperTargets.cmake)
+
+
+### Installation
+set(INCMONK_PKG_NAME "IncrementalMonkey")
+
+install(
+  TARGETS monkey
+  EXPORT ${INCMONK_PKG_NAME}
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+)
+
+# Generate and install CMake scripts for find_package
+install(EXPORT ${INCMONK_PKG_NAME}
+        DESTINATION lib/cmake/${INCMONK_PKG_NAME}
+        FILE "${INCMONK_PKG_NAME}Config.cmake")

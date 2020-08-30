@@ -79,13 +79,17 @@ a CryptoMiniSat 5.8.0 installation in your `CMAKE_PREFIX_PATH`.
 
 ### Step-by-step build guide
 
+In the following snippets, `<INSTALLDIR>` is an arbitrary directory
+where you want `bin/monkey` to end up (e.g. `~/tools` or
+`/usr/local`).
+
 Build CryptoMiniSat:
 
 ```
 # git clone --depth 1 --branch 5.8.0 https://github.com/msoos/cryptominisat
 # mkdir cms-build
 # cd cms-build
-# cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=$(pwd)/../cms-install ../cryptominisat
+# cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=<INSTALLDIR> ../cryptominisat
 # cmake --build . --target install
 ```
 
@@ -98,12 +102,13 @@ Build Incremental Monkey:
 # cd ..
 # mkdir monkey-build
 # cd monkey-build
-# cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=$(pwd)/../cms-install ../IncrementalMonkey
-# cmake --build .
+# cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=<INSTALLDIR> ../IncrementalMonkey
+# cmake --build . --target install
 ```
 
-Run:
+Run `monkey`:
 ```
+# cd <INSTALLDIR>
 # bin/monkey --help
 ```
 
