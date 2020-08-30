@@ -113,7 +113,7 @@ public:
     std::vector<CMSat::Lit> const conflict = m_solver.get_conflict();
     for (CMSat::Lit failedAssumption : conflict) {
       int var = static_cast<int>(failedAssumption.var());
-      var *= (failedAssumption.sign() ? -1 : 1);
+      var *= (failedAssumption.sign() ? 1 : -1);
       m_conflict.insert(var);
     }
   }
