@@ -4,13 +4,6 @@ set -e
 echo "Originally configured C++ compiler: ${CXX}"
 echo "Originally configured C compiler: ${CC}"
 
-host_os=`uname`
-if [[ "${host_os}"  == "Linux" ]] && [[ "${CC}" =~ gcc ]]
-then
-  export CC=gcc-8
-  export CXX=g++-8
-fi
-
 echo "Tool versions:"
 echo "Using C++ compiler: ${CXX}"
 echo "Using C compiler: ${CC}"
