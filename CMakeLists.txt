@@ -25,7 +25,7 @@
 cmake_minimum_required(VERSION 3.12)
 cmake_policy(VERSION 3.12)
 
-project(IncrementalMonkey VERSION 0.2.0)
+project(IncrementalMonkey VERSION 0.1.0)
 
 ### NiceMake setup
 set(NM_CONF_GTEST_TAG "release-1.10.0")

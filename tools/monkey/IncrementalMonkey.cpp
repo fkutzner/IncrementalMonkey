@@ -44,8 +44,9 @@ auto main(int argc, char** argv) -> int
   uint64_t fuzzMaxRounds = 0;
   uint64_t fuzzTimeoutMillis = 0;
 
-  CLI::App app;
-  CLI::App* fuzzApp = app.add_subcommand("fuzz", "Random-tes IPASIR libraries");
+  std::string const version = INCMONK_VERSION;
+  CLI::App app{"A random-testing tool for IPASIR implementations\nVersion " + version, "monkey"};
+  CLI::App* fuzzApp = app.add_subcommand("fuzz", "Random-test IPASIR libraries");
   fuzzApp->add_option(
       "--id",
       fuzzerParams.fuzzerId,

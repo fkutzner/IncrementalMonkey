@@ -8,4 +8,5 @@ nm_add_tool(monkey
   Replay.h
 )
 
-target_link_libraries(monkey deps_cli11 libincmonk)
+target_compile_definitions(monkey PRIVATE "INCMONK_VERSION=\"${CMAKE_PROJECT_VERSION}\"")
+target_link_libraries(monkey PRIVATE deps_cli11 libincmonk)
