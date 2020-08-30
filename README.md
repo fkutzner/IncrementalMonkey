@@ -44,21 +44,37 @@ type `invalidmodel` and `invalidfailed`, assertions checking the
 rsp. invalid failed assumption settings are not checked in the
 C++ program.
 
+
+
 ### Broken example solvers
 
 * `lib/libcrashing-ipasir-solver.so`: randomly crashes
 * `lib/libincorrect-ipasir-solver.so`: randomly produces wrong results
 
-## Building
+## Supported platforms
 
-Currently, Incremental Monkey can be used on macOS (10.15 and later)
-and Linux. You'll need a not-so-ancient compiler and C++ standard
-library (supporting C++17 - GCC 8 or Clang 10 will do),  `git` and 
-`cmake` (>= 3.12). It might also be usable on Cygwin, but as it relies
-on rapidly `fork()`ing subprocesses, running it on Cygwin might only work
-well when generating harder problem instances.
+Incremental monkey is regularly built and tested on **MacOS 10.15** and
+**Ubuntu 20.04-LTS**. If you wish to build Incremental Monkey with Clang
+on Ubuntu, make sure to upgrade to Clang 9. On either system, you'll need
+at least CMake 3.12.
 
-Build summary: build `https://github.com/fkutzner/IncrementalMonkey` with
+### Other platforms
+
+Requirements:
+
+* GCC 8 or Clang 9
+* libstdc++ 8 or libc++ 7
+* CMake 3.12
+* POSIX
+
+Incremental Monkey might also be usable on Cygwin, but as it relies
+on rapidly `fork()`ing subprocesses, it might only work well when
+generating harder problem instances.
+
+
+## Building Incremental Monkey
+
+**Summary:** build `https://github.com/fkutzner/IncrementalMonkey` with
 a CryptoMiniSat 5.8.0 installation in your `CMAKE_PREFIX_PATH`.
 
 ### Step-by-step build guide
@@ -69,7 +85,7 @@ Build CryptoMiniSat:
 # git clone --depth 1 --branch 5.8.0 https://github.com/msoos/cryptominisat
 # mkdir cms-build
 # cd cms-build
-# cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=(pwd)/../cms-install ../cryptominisat
+# cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=$(pwd)/../cms-install ../cryptominisat
 # cmake --build . --target install
 ```
 
@@ -82,7 +98,7 @@ Build Incremental Monkey:
 # cd ..
 # mkdir monkey-build
 # cd monkey-build
-# cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=(pwd)/../cms-install ../IncrementalMonkey
+# cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=$(pwd)/../cms-install ../IncrementalMonkey
 # cmake --build .
 ```
 
