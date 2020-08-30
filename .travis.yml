@@ -1,0 +1,40 @@
+language: cpp
+compiler:
+  - gcc
+  - clang
+
+os:
+  - linux
+  - osx
+
+dist: bionic
+sudo: required
+
+# Requiring XCode 12, macOS 10.15
+osx_image: xcode12
+
+# TODO: add sanitizer & coverage builds
+
+addons:
+  apt:
+    sources:
+    - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-9 main'
+      key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+    - sourceline: 'ppa:ubuntu-toolchain-r/test'
+    packages:
+    - clang-9
+    - cmake
+    - gcc-8
+    - g++-8
+    - ninja-build
+
+before_script:
+  - if [[ "${TRAVIS_OS_NAME}" == "osx" ]]; then
+      brew update ;
+      brew upgrade cmake ;
+    fi
+
+script:
+  - mkdir -p ../build
+  - cd ../build
+  - bash $TRAVIS_BUILD_DIR/etc/TravisBuild.sh
