@@ -30,6 +30,7 @@
 #include <libincmonk/SolveCmdScheduler.h>
 
 #include <algorithm>
+#include <cassert>
 #include <random>
 
 

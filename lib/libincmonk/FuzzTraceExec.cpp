@@ -29,6 +29,7 @@
 #include <libincmonk/FuzzTrace.h>
 #include <libincmonk/Oracle.h>
 
+#include <cassert>
 #include <filesystem>
 #include <iomanip>
 #include <sstream>

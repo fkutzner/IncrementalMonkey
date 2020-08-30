@@ -30,6 +30,7 @@
 
 #include <gsl/gsl_util>
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <random>

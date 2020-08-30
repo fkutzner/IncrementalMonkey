@@ -28,6 +28,7 @@
 
 #include <cryptominisat5/cryptominisat.h>
 
+#include <algorithm>
 #include <map>
 
 namespace incmonk {
