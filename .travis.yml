@@ -26,6 +26,7 @@ addons:
     - cmake
     - gcc-8
     - g++-8
+    - libstdc++-8-dev
     - ninja-build
 
 before_script:
