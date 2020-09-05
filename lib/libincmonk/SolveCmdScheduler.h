@@ -42,4 +42,17 @@ namespace incmonk {
  *   interspersed with random assume and solve commands
  */
 auto insertSolveCmds(FuzzTrace&& trace, CNFLit maxLit, uint64_t seed) -> FuzzTrace;
+
+
+/**
+ * \brief Creates a trace with additional random havoc commands
+ * 
+ * \param trace   The trace to which the commands will be added
+ * \param seed    RNG seed
+ * 
+ * \returns A trace containing all clauses of `trace`, preserving their order,
+ *   interspersed with random regular havoc commands, starting with
+ *   a pre-init havoc command.
+ */
+auto insertHavocCmds(FuzzTrace&& trace, uint64_t seed) -> FuzzTrace;
 }

@@ -31,6 +31,7 @@
 #include <libincmonk/FuzzTrace.h>
 #include <libincmonk/FuzzTraceExec.h>
 #include <libincmonk/IPASIRSolver.h>
+#include <libincmonk/SolveCmdScheduler.h>
 #include <libincmonk/Stopwatch.h>
 
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>
@@ -97,6 +98,11 @@ void storeCrashTrace(FuzzTrace const& trace, std::string const& fuzzerID, uint32
   formatter << fuzzerID << "-" << std::setfill('0') << std::setw(6) << runID << "-crashed.mtr";
   storeTrace(trace.begin(), trace.end(), formatter.str());
 }
+
+auto supportsHavocing(IPASIRSolverDSO const& dso)
+{
+  return dso.havocFn != nullptr && dso.havocInitFn != nullptr;
+}
 }
 
 
@@ -129,6 +135,9 @@ auto fuzzerMain(FuzzerParams const& params) -> int
     report.onBeginRound();
 
     FuzzTrace trace = randomSatGen->generate();
+    if (!params.disableHavoc && supportsHavocing(ipasirDSO)) {
+      trace = insertHavocCmds(std::move(trace), params.seed + 1);
+    }
 
     bool crashed = false;
     std::optional<uint64_t> result = 0;

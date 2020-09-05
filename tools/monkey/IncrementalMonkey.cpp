@@ -55,6 +55,7 @@ auto main(int argc, char** argv) -> int
       "--rounds", fuzzMaxRounds, "Number of rounds to be executed (default: no limit)");
   CLI::Option* fuzzTimeoutMillisOpt = fuzzApp->add_option(
       "--timeout", fuzzTimeoutMillis, "Timeout for solver runs (default: no limit)");
+  fuzzApp->add_option("--no-havoc", fuzzerParams.disableHavoc, "Disable havoc commands");
   fuzzApp->add_option(
       "--seed", fuzzerParams.seed, "Random number generator seed for problem generators");
 

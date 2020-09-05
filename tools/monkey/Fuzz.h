@@ -38,6 +38,7 @@ struct FuzzerParams {
   std::optional<std::chrono::milliseconds> timeout;
   std::string fuzzerId;
   uint64_t seed = 10;
+  bool disableHavoc = false;
 };
 
 auto fuzzerMain(FuzzerParams const& params) -> int;

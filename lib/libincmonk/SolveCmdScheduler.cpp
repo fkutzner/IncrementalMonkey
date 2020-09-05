@@ -66,4 +66,29 @@ auto insertSolveCmds(FuzzTrace&& trace, CNFLit maxLit, uint64_t seed) -> FuzzTra
   return result;
 }
 
+
+auto insertHavocCmds(FuzzTrace&& trace, uint64_t seed) -> FuzzTrace
+{
+  // TODO: configurable parameter distributions
+  // TODO: tune parameters, these are arbitrary
+
+  XorShiftRandomBitGenerator rng{seed};
+  std::uniform_real_distribution<double> havocDensityDist{0.0, 1.0};
+  double const pHavoc = havocDensityDist(rng);
+
+  std::uniform_int_distribution<uint64_t> havocDist;
+
+  FuzzTrace result;
+  result.push_back(HavocCmd{havocDist(rng), true});
+
+  for (FuzzTrace::size_type idx = 0, end = trace.size(); idx < end; ++idx) {
+    result.push_back(std::move(trace[idx]));
+    if (havocDensityDist(rng) < pHavoc) {
+      result.push_back(HavocCmd{havocDist(rng), false});
+    }
+  }
+
+  return result;
+}
+
 }
