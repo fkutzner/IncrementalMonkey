@@ -28,7 +28,7 @@ build_and_test() {
   cmake --build . -- -j2
 
   echo -n "Testing "
-  bin/incmonktests.libincmonk.unit
+  ctest --output-on-failure
 }
 
 BUILD_DIR=$(pwd)
