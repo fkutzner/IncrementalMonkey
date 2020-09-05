@@ -24,56 +24,42 @@
 
 */
 
-#pragma once
-
-#include <cstdint>
-#include <limits>
+#include <libincmonk/StochasticsUtils.h>
 
 namespace incmonk {
 
-/**
- * \brief A UniformRandomBitGenerator implementing Marsaglia's 64-bit xorshift generator.
- * 
- * See Sebastiano Vigna, "An experimental exploration of Marsaglia's xorshift generators, scrambled"
- * (http://vigna.di.unimi.it/ftp/papers/xorshift.pdf)
- */
-class XorShiftRandomBitGenerator {
-public:
-  using result_type = uint64_t;
+ClosedInterval::ClosedInterval(double min, double max) noexcept : m_min{min}, m_max{max}
+{
+  if (m_max < m_min) {
+    m_max = 0;
+    m_min = 0;
+  }
+}
 
-  explicit XorShiftRandomBitGenerator(uint64_t seed) noexcept;
-  auto operator()() noexcept -> result_type;
+auto ClosedInterval::min() const noexcept -> double
+{
+  return m_min;
+}
 
-  constexpr static auto min() -> result_type;
-  constexpr static auto max() -> result_type;
+auto ClosedInterval::max() const noexcept -> double
+{
+  return m_max;
+}
 
-private:
-  std::uint64_t m_state;
-};
+auto ClosedInterval::size() const noexcept -> double
+{
+  return m_max - m_min;
+}
 
-inline XorShiftRandomBitGenerator::XorShiftRandomBitGenerator(uint64_t seed) noexcept
-  : m_state{seed}
+
+RandomDensityEventSchedule::RandomDensityEventSchedule(uint64_t seed, ClosedInterval densities)
+  : m_dist{0.0, 1.0}, m_rng{seed}, m_density{densities.min() + m_dist(m_rng) * densities.size()}
 {
 }
 
-constexpr auto XorShiftRandomBitGenerator::min() -> result_type
-{
-  return std::numeric_limits<uint64_t>::min();
-}
 
-constexpr auto XorShiftRandomBitGenerator::max() -> result_type
+auto RandomDensityEventSchedule::next() -> bool
 {
-  return std::numeric_limits<uint64_t>::max();
+  return m_dist(m_rng) <= m_density;
 }
-
-inline auto XorShiftRandomBitGenerator::operator()() noexcept -> result_type
-{
-  constexpr uint64_t mult = 2685821657736338717ull;
-  m_state ^= m_state >> 12;
-  m_state ^= m_state << 25;
-  m_state ^= m_state >> 27;
-  m_state = m_state * mult;
-  return m_state;
-}
-
 }

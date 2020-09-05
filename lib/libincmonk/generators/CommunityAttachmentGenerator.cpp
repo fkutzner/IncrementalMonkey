@@ -173,9 +173,10 @@ public:
     std::uniform_int_distribution<int32_t> solveCmdSeedDistr;
 
     FuzzTrace problem = generate(numClauses, numVariables, numCommunities, clauseSize, modularity);
-    FuzzTrace result = insertSolveCmds(std::move(problem), numClauses, solveCmdSeedDistr(m_rng));
-    if (m_params.havocMode == HavocMode::ENABLED) {
-      return insertHavocCmds(std::move(result), solveCmdSeedDistr(m_rng));
+    FuzzTrace result = insertSolveCmds(
+        std::move(problem), m_params.solveCmdSchedule, numClauses, solveCmdSeedDistr(m_rng));
+    if (m_params.havocSchedule.has_value()) {
+      return insertHavocCmds(std::move(result), *m_params.havocSchedule, solveCmdSeedDistr(m_rng));
     }
     else {
       return result;

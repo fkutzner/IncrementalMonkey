@@ -26,9 +26,11 @@
 
 #pragma once
 
+#include <libincmonk/InterspersionSchedulers.h>
 #include <libincmonk/generators/FuzzTraceGenerator.h>
 
 #include <memory>
+#include <optional>
 #include <random>
 
 namespace incmonk {
@@ -39,7 +41,8 @@ struct CommunityAttachmentModelParams {
   std::piecewise_linear_distribution<double> numVariablesPerClauseDistribution;
   std::piecewise_linear_distribution<double> modularityDistribution;
   uint64_t seed = 1;
-  HavocMode havocMode = HavocMode::DISABLED;
+  std::optional<HavocCmdScheduleParams> havocSchedule;
+  SolveCmdScheduleParams solveCmdSchedule;
 };
 
 /**

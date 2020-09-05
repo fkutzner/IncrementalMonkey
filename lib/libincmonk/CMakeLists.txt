@@ -15,6 +15,8 @@ nm_add_library(libincmonk STATIC
   IPASIRSolver.h
   Oracle.h
   OracleCMS.cpp
+  StochasticsUtils.cpp
+  StochasticsUtils.h
   TBool.h
 
   generators/CommunityAttachmentGenerator.cpp

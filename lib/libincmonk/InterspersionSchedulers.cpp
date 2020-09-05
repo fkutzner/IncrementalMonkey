@@ -34,30 +34,42 @@
 
 
 namespace incmonk {
-auto insertSolveCmds(FuzzTrace&& trace, CNFLit maxLit, uint64_t seed) -> FuzzTrace
+
+namespace {
+auto isBeginOfPhase(FuzzCmd const& cmd)
 {
-  // TODO: configurable parameter distributions
+  return std::get_if<SolveCmd>(&cmd) != nullptr;
+}
+}
 
+auto insertSolveCmds(FuzzTrace&& trace,
+                     SolveCmdScheduleParams const& stochParams,
+                     CNFLit maxLit,
+                     uint64_t seed) -> FuzzTrace
+{
   XorShiftRandomBitGenerator rng{seed};
+  std::uniform_int_distribution<int> assumptionSignDist{0, 1};
+  std::uniform_int_distribution<CNFLit> assumptionVarDist{1, std::abs(maxLit)};
 
-  // TODO: add more interesting cases (consecutive solve calls,
-  // assumption-free solve calls, all solves at end, ...)
-  // TODO: tune parameters, these are arbitrary
-  std::uniform_real_distribution<double> dist{0.0, 1.0};
-  std::uniform_int_distribution<CNFLit> assumptionDist{1, std::abs(maxLit)};
-  double const assumeProb = 0.1;
-  double const solveProb = 0.01;
+  RandomDensityEventSchedule solveCmds{seed + 1, stochParams.density};
+  RandomDensityEventSchedule assumeCmds{seed + 2, stochParams.assumptionDensity};
+  RandomDensityEventSchedule phasesWithAssumptions{seed + 2, stochParams.assumptionPhaseDensity};
 
   FuzzTrace result;
 
+  bool assumptionInsertionActive = phasesWithAssumptions.next();
   for (FuzzTrace::size_type idx = 0, end = trace.size(); idx < end; ++idx) {
+    if (isBeginOfPhase(trace[idx])) {
+      assumptionInsertionActive = phasesWithAssumptions.next();
+    }
+
     result.push_back(std::move(trace[idx]));
-    if (dist(rng) < assumeProb) {
-      int32_t sign = (dist(rng) < 0.5 ? 1 : -1);
-      CNFLit assumption = sign * assumptionDist(rng);
+    if (assumptionInsertionActive && assumeCmds.next()) {
+      int32_t sign = 1 - assumptionSignDist(rng) * 2;
+      CNFLit assumption = sign * assumptionVarDist(rng);
       result.push_back(AssumeCmd{{assumption}});
     }
-    if (dist(rng) < solveProb) {
+    if (solveCmds.next()) {
       result.push_back(SolveCmd{});
     }
   }
@@ -67,24 +79,26 @@ auto insertSolveCmds(FuzzTrace&& trace, CNFLit maxLit, uint64_t seed) -> FuzzTra
 }
 
 
-auto insertHavocCmds(FuzzTrace&& trace, uint64_t seed) -> FuzzTrace
+auto insertHavocCmds(FuzzTrace&& trace, HavocCmdScheduleParams const& stochParams, uint64_t seed)
+    -> FuzzTrace
 {
-  // TODO: configurable parameter distributions
-  // TODO: tune parameters, these are arbitrary
-
   XorShiftRandomBitGenerator rng{seed};
-  std::uniform_real_distribution<double> havocDensityDist{0.0, 1.0};
-  double const pHavoc = havocDensityDist(rng);
-
-  std::uniform_int_distribution<uint64_t> havocDist;
+  std::uniform_int_distribution<uint64_t> havocValueDist;
+  RandomDensityEventSchedule havocsWithinPhases{seed + 1, stochParams.density};
+  RandomDensityEventSchedule phasesWithHavocs{seed + 2, stochParams.phaseDensity};
 
   FuzzTrace result;
-  result.push_back(HavocCmd{havocDist(rng), true});
+  result.push_back(HavocCmd{havocValueDist(rng), true});
 
+  bool havocActive = phasesWithHavocs.next();
   for (FuzzTrace::size_type idx = 0, end = trace.size(); idx < end; ++idx) {
+    if (isBeginOfPhase(trace[idx])) {
+      havocActive = phasesWithHavocs.next();
+    }
+
     result.push_back(std::move(trace[idx]));
-    if (havocDensityDist(rng) < pHavoc) {
-      result.push_back(HavocCmd{havocDist(rng), false});
+    if (havocActive && havocsWithinPhases.next()) {
+      result.push_back(HavocCmd{havocValueDist(rng), false});
     }
   }
 

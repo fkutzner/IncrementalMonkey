@@ -64,6 +64,8 @@ auto createDefaultCAModelParams(uint64_t seed) -> CommunityAttachmentModelParams
   result.numVariablesPerClauseDistribution = createPWDist(varsPerClauses, varsPerClauseWeights);
   result.modularityDistribution = createPWDist(modularities, modularityWeights);
   result.seed = seed;
+  result.havocSchedule = HavocCmdScheduleParams{};
+  result.solveCmdSchedule = SolveCmdScheduleParams{};
   return result;
 }
 

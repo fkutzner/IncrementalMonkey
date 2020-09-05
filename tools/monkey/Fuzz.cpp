@@ -127,10 +127,10 @@ auto fuzzerMain(FuzzerParams const& params) -> int
 
   Config cfg = getConfig("", params.seed);
   if (!params.disableHavoc && supportsHavocing(ipasirDSO)) {
-    cfg.communityAttachmentModelParams.havocMode = HavocMode::ENABLED;
     std::cout << "Havoc: enabled\n";
   }
   else {
+    cfg.communityAttachmentModelParams.havocSchedule = std::nullopt;
     std::cout << "Havoc: disabled\n";
   }
   auto randomSatGen = createCommunityAttachmentGen(std::move(cfg.communityAttachmentModelParams));

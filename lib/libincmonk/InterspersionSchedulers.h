@@ -27,32 +27,62 @@
 #pragma once
 
 #include <libincmonk/FuzzTrace.h>
+#include <libincmonk/StochasticsUtils.h>
 
 #include <cstdint>
 
 namespace incmonk {
+
+struct SolveCmdScheduleParams {
+  /// Density of solve calls within the trace
+  ClosedInterval density{0.0, 0.02};
+
+  /// Density of assumptions within phases (solve-to-solve regions
+  /// within the trace)
+  ClosedInterval assumptionDensity{0.0, 0.2};
+
+  /// Density of solve-to-solve regions where assumption insertion
+  /// is active
+  ClosedInterval assumptionPhaseDensity{0.0, 1.0};
+};
+
 /**
  * \brief Creates a trace with additional random solve and assume commands
  * 
- * \param trace   The trace to which the commands will be added
- * \param maxLit  The literal with the greatest variable occurring in `trace`
- * \param seed    RNG seed
+ * \param trace       The trace to which the commands will be added
+ * \param stochParams Parameters for stochastic choices
+ * \param maxLit      The literal with the greatest variable occurring in `trace`
+ * \param seed        RNG seed
  * 
  * \returns A trace containing all clauses of `trace`, preserving their order,
  *   interspersed with random assume and solve commands
  */
-auto insertSolveCmds(FuzzTrace&& trace, CNFLit maxLit, uint64_t seed) -> FuzzTrace;
+auto insertSolveCmds(FuzzTrace&& trace,
+                     SolveCmdScheduleParams const& stochParams,
+                     CNFLit maxLit,
+                     uint64_t seed) -> FuzzTrace;
 
+
+struct HavocCmdScheduleParams {
+  /// Density of havoc commands within phases (solve-to-solve regions
+  /// within the trace) where insertion is active
+  ClosedInterval density{0.0, 0.05};
+
+  /// Density of phases where havoc commands are inserted
+  ClosedInterval phaseDensity{0.0, 1.0};
+};
 
 /**
  * \brief Creates a trace with additional random havoc commands
  * 
- * \param trace   The trace to which the commands will be added
- * \param seed    RNG seed
+ * \param trace       The trace to which the commands will be added
+ * \param stochParams Parameters for stochastic choices
+ * \param seed        RNG seed
  * 
  * \returns A trace containing all clauses of `trace`, preserving their order,
  *   interspersed with random regular havoc commands, starting with
  *   a pre-init havoc command.
  */
-auto insertHavocCmds(FuzzTrace&& trace, uint64_t seed) -> FuzzTrace;
+auto insertHavocCmds(FuzzTrace&& trace, HavocCmdScheduleParams const& stochParams, uint64_t seed)
+    -> FuzzTrace;
 }

@@ -26,54 +26,33 @@
 
 #pragma once
 
-#include <cstdint>
-#include <limits>
+#include <libincmonk/FastRand.h>
+
+#include <random>
 
 namespace incmonk {
 
-/**
- * \brief A UniformRandomBitGenerator implementing Marsaglia's 64-bit xorshift generator.
- * 
- * See Sebastiano Vigna, "An experimental exploration of Marsaglia's xorshift generators, scrambled"
- * (http://vigna.di.unimi.it/ftp/papers/xorshift.pdf)
- */
-class XorShiftRandomBitGenerator {
+class ClosedInterval {
 public:
-  using result_type = uint64_t;
-
-  explicit XorShiftRandomBitGenerator(uint64_t seed) noexcept;
-  auto operator()() noexcept -> result_type;
-
-  constexpr static auto min() -> result_type;
-  constexpr static auto max() -> result_type;
+  ClosedInterval(double min, double max) noexcept;
+  auto min() const noexcept -> double;
+  auto max() const noexcept -> double;
+  auto size() const noexcept -> double;
 
 private:
-  std::uint64_t m_state;
+  double m_min;
+  double m_max;
 };
 
-inline XorShiftRandomBitGenerator::XorShiftRandomBitGenerator(uint64_t seed) noexcept
-  : m_state{seed}
-{
-}
+class RandomDensityEventSchedule {
+public:
+  RandomDensityEventSchedule(uint64_t seed, ClosedInterval densities);
+  auto next() -> bool;
 
-constexpr auto XorShiftRandomBitGenerator::min() -> result_type
-{
-  return std::numeric_limits<uint64_t>::min();
-}
-
-constexpr auto XorShiftRandomBitGenerator::max() -> result_type
-{
-  return std::numeric_limits<uint64_t>::max();
-}
-
-inline auto XorShiftRandomBitGenerator::operator()() noexcept -> result_type
-{
-  constexpr uint64_t mult = 2685821657736338717ull;
-  m_state ^= m_state >> 12;
-  m_state ^= m_state << 25;
-  m_state ^= m_state >> 27;
-  m_state = m_state * mult;
-  return m_state;
-}
+private:
+  std::uniform_real_distribution<double> m_dist;
+  XorShiftRandomBitGenerator m_rng;
+  double m_density;
+};
 
 }
