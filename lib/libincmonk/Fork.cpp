@@ -130,7 +130,7 @@ public:
     while (true) {
       int statloc = 0;
       pid_t waitResult = waitpid(m_pid, &statloc, 0);
-      assert(errno != EINVAL);
+      assert(waitResult != -1 || errno != EINVAL);
 
       if (waitResult != -1) {
         if (WIFEXITED(statloc) == 0) {
