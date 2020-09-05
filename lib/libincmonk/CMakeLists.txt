@@ -9,12 +9,12 @@ nm_add_library(libincmonk STATIC
   FuzzTrace.h
   FuzzTraceExec.cpp
   FuzzTraceExec.h
+  InterspersionSchedulers.cpp
+  InterspersionSchedulers.h
   IPASIRSolver.cpp
   IPASIRSolver.h
   Oracle.h
   OracleCMS.cpp
-  SolveCmdScheduler.cpp
-  SolveCmdScheduler.h
   TBool.h
 
   generators/CommunityAttachmentGenerator.cpp

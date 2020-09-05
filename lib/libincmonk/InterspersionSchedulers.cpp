@@ -24,7 +24,7 @@
 
 */
 
-#include <libincmonk/SolveCmdScheduler.h>
+#include <libincmonk/InterspersionSchedulers.h>
 
 #include <libincmonk/CNF.h>
 #include <libincmonk/FastRand.h>

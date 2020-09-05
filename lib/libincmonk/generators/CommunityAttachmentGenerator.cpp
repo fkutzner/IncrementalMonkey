@@ -27,7 +27,7 @@
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>
 
 #include <libincmonk/CNF.h>
-#include <libincmonk/SolveCmdScheduler.h>
+#include <libincmonk/InterspersionSchedulers.h>
 
 #include <algorithm>
 #include <cassert>

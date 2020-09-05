@@ -31,7 +31,7 @@
 #include <libincmonk/FuzzTrace.h>
 #include <libincmonk/FuzzTraceExec.h>
 #include <libincmonk/IPASIRSolver.h>
-#include <libincmonk/SolveCmdScheduler.h>
+#include <libincmonk/InterspersionSchedulers.h>
 #include <libincmonk/Stopwatch.h>
 
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>
