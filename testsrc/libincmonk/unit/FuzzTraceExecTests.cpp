@@ -104,6 +104,10 @@ public:
     return m_failed.find(lit) != m_failed.end();
   }
 
+  void reinitializeWithHavoc(uint64_t) noexcept override {}
+
+  void havoc(uint64_t) noexcept override {}
+
   virtual ~FakeIPASIRSolver() = default;
 
 private:

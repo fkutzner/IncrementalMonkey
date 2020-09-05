@@ -101,6 +101,22 @@ auto operator<<(std::ostream& stream, SolveCmd const& cmd) -> std::ostream&
   return stream;
 }
 
+auto operator==(HavocCmd const& lhs, HavocCmd const& rhs) noexcept -> bool
+{
+  return &lhs == &rhs || lhs.seed == rhs.seed;
+}
+
+auto operator!=(HavocCmd const& lhs, HavocCmd const& rhs) noexcept -> bool
+{
+  return !(lhs == rhs);
+}
+
+auto operator<<(std::ostream& stream, HavocCmd const& cmd) -> std::ostream&
+{
+  stream << "(HavocCmd " << (cmd.beforeInit ? "pre-init " : "") << cmd.seed << ")";
+  return stream;
+}
+
 auto operator<<(std::ostream& stream, FuzzCmd const& cmd) -> std::ostream&
 {
   std::visit([&stream](auto&& x) { stream << x; }, cmd);
@@ -124,6 +140,17 @@ auto applyCmd(IPASIRSolver& solver, SolveCmd const&) -> bool
 {
   solver.solve();
   return false;
+}
+
+auto applyCmd(IPASIRSolver& solver, HavocCmd const& cmd) -> bool
+{
+  if (cmd.beforeInit) {
+    solver.reinitializeWithHavoc(cmd.seed);
+  }
+  else {
+    solver.havoc(cmd.seed);
+  }
+  return true;
 }
 }
 
@@ -196,6 +223,16 @@ auto toString(std::string const& solverVarName, SolveCmd const& cmd) -> std::str
     return "ipasir_solve(" + solverVarName + ");\n";
   }
 }
+
+auto toString(std::string const& solverVarName, HavocCmd const& cmd) -> std::string
+{
+  if (cmd.beforeInit) {
+    return "// pre-init havoc with seed " + std::to_string(cmd.seed);
+  }
+  else {
+    return "// havoc " + solverVarName + " with seed " + std::to_string(cmd.seed);
+  }
+}
 }
 
 auto toCxxFunctionBody(FuzzTrace::const_iterator first,
@@ -255,6 +292,14 @@ void storeCmd(SolveCmd const& cmd, std::vector<uint32_t>& buffer)
   }
   appendToTraceBuffer(header, buffer);
 }
+
+void storeCmd(HavocCmd const& cmd, std::vector<uint32_t>& buffer)
+{
+  uint32_t header = 4 << 24 | (cmd.beforeInit ? 1 : 0);
+  appendToTraceBuffer(header, buffer);
+  appendToTraceBuffer(cmd.seed & 0xFFFFFFFF, buffer);
+  appendToTraceBuffer(cmd.seed >> 32, buffer);
+}
 }
 
 void storeTrace(FuzzTrace::const_iterator first,
@@ -306,6 +351,16 @@ std::vector<CNFLit> readCNFLits(FILE* input, size_t size)
   return result;
 }
 
+auto readHavocSeed(FILE* input) -> uint64_t
+{
+  std::array<uint32_t, 2> buffer;
+  size_t numRead = fread(buffer.data(), sizeof(uint32_t), 2, input);
+  if (numRead != 2) {
+    throw IOException{"Unexpected end of file"};
+  }
+  return static_cast<uint64_t>(buffer[0]) | (static_cast<uint64_t>(buffer[1]) << 32);
+}
+
 std::optional<FuzzCmd> readFuzzCmd(FILE* input)
 {
   uint32_t cmdHeader;
@@ -337,6 +392,12 @@ std::optional<FuzzCmd> readFuzzCmd(FILE* input)
     else if (expected != 0) {
       throw IOException{"Invalid fuzz command value"};
     }
+    return result;
+  }
+  else if (type == 4) {
+    HavocCmd result;
+    result.seed = readHavocSeed(input);
+    result.beforeInit = ((cmdHeader & 1) == 1 ? true : false);
     return result;
   }
   else {

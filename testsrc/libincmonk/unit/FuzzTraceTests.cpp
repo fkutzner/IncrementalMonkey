@@ -108,6 +108,13 @@ public:
     m_recordedTrace.push_back(AssumeCmd{assumptions});
   }
 
+  void reinitializeWithHavoc(uint64_t seed) noexcept override
+  {
+    m_recordedTrace.push_back(HavocCmd{seed, true});
+  }
+
+  void havoc(uint64_t seed) noexcept override { m_recordedTrace.push_back(HavocCmd{seed, false}); }
+
   auto solve() -> IPASIRSolver::Result override
   {
     assert(!m_solveResults.empty());
@@ -203,6 +210,11 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_applyTrace,
     FuzzTrace{AssumeCmd{{1, -2, -3}}},
     FuzzTrace{SolveCmd{false}},
     FuzzTrace{SolveCmd{true}},
+    FuzzTrace{HavocCmd{1}},
+    FuzzTrace{
+      HavocCmd{1, true},
+      HavocCmd{2, false}
+    },
     FuzzTrace{
         AddClauseCmd{{1, -2}},
         AddClauseCmd{{-2, 4}},
@@ -210,6 +222,7 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_applyTrace,
         SolveCmd{true}
     },
     FuzzTrace{
+        HavocCmd{3, true},
         AddClauseCmd{{1, -2}},
         AddClauseCmd{{-2, 4}},
         AssumeCmd{{1}},
@@ -217,6 +230,7 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_applyTrace,
         SolveCmd{true},
         AddClauseCmd{{2}},
         AddClauseCmd{{-4}},
+        HavocCmd{10, false},
         SolveCmd{false}
     }
   )
@@ -293,14 +307,17 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_loadStoreTrace,
     std::make_tuple(FuzzTrace{SolveCmd{}}, std::vector<uint32_t>{magicCookie, 0x03000000}),
     std::make_tuple(FuzzTrace{SolveCmd{true}}, std::vector<uint32_t>{magicCookie, 0x0300000A}),
     std::make_tuple(FuzzTrace{SolveCmd{false}}, std::vector<uint32_t>{magicCookie, 0x03000014}),
+    std::make_tuple(FuzzTrace{HavocCmd{15}}, std::vector<uint32_t>{magicCookie, 0x04000000, 15, 0}),
 
     std::make_tuple(
       FuzzTrace{
+        HavocCmd{(uint64_t{2} << 32) + 16, true},
         AddClauseCmd{{1, -2}},
         AddClauseCmd{{-2, 4}},
         AssumeCmd{{1}},
         SolveCmd{true},
         SolveCmd{true},
+        HavocCmd{(uint64_t{2} << 32) + 16, false},
         AddClauseCmd{},
         AddClauseCmd{{2}},
         AddClauseCmd{{-4}},
@@ -308,11 +325,13 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_loadStoreTrace,
       },
       std::vector<uint32_t>{
         magicCookie,
+        0x04000001, 16, 2,
         0x01000002, 2, 5,
         0x01000002, 5, 8,
         0x02000001, 2,
         0x0300000A,
         0x0300000A,
+        0x04000000, 16, 2,
         0x01000000,
         0x01000001, 4,
         0x01000001, 9,

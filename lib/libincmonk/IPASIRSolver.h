@@ -47,6 +47,9 @@ using IPASIRSolveFn = std::add_pointer_t<int(void*)>;
 using IPASIRValFn = std::add_pointer_t<int(void*, int)>;
 using IPASIRFailedFn = std::add_pointer_t<int(void*, int)>;
 
+using IncMonkIPASIRHavocInitFn = std::add_pointer_t<void(uint64_t)>;
+using IncMonkIPASIRHavocFn = std::add_pointer_t<void(void*, uint64_t)>;
+
 class DSOLoadError : public std::runtime_error {
 public:
   DSOLoadError(std::string const& what) : std::runtime_error(what) {}
@@ -82,6 +85,9 @@ public:
   IPASIRSolveFn const solveFn = nullptr;
   IPASIRValFn const valFn = nullptr;
   IPASIRFailedFn const failedFn = nullptr;
+
+  IncMonkIPASIRHavocInitFn const havocInitFn = nullptr;
+  IncMonkIPASIRHavocFn const havocFn = nullptr;
 };
 
 
@@ -93,6 +99,8 @@ public:
   IPASIRSolver() = default;
   virtual ~IPASIRSolver() = default;
 
+  virtual void reinitializeWithHavoc(uint64_t seed) noexcept = 0;
+
   virtual void addClause(CNFClause const& clause) = 0;
   virtual void assume(std::vector<CNFLit> const& assumptions) = 0;
 
@@ -102,10 +110,9 @@ public:
   virtual auto getLastSolveResult() const noexcept -> Result = 0;
   virtual auto getValue(CNFLit lit) const noexcept -> TBool = 0;
   virtual auto isFailed(CNFLit lit) const noexcept -> bool = 0;
+  virtual void havoc(uint64_t seed) noexcept = 0;
 
   virtual void configure(uint64_t value) = 0;
-
-private:
 };
 
 auto createIPASIRSolver(IPASIRSolverDSO const& dso) -> std::unique_ptr<IPASIRSolver>;

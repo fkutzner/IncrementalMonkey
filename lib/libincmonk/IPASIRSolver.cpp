@@ -45,6 +45,13 @@ auto checkedGetFn(void* dso, std::string name) -> FnTy
   return reinterpret_cast<FnTy>(sym);
 }
 
+template <typename FnTy>
+auto uncheckedGetFn(void* dso, std::string name) -> FnTy
+{
+  void* sym = dlsym(dso, name.c_str());
+  return reinterpret_cast<FnTy>(sym);
+}
+
 void* checkedOpenDSO(std::filesystem::path const& path)
 {
   void* result = dlopen(path.string().c_str(), RTLD_LOCAL);
@@ -142,6 +149,22 @@ public:
     // Not implemented yet
   }
 
+  void reinitializeWithHavoc(uint64_t seed) noexcept override
+  {
+    if (m_dso.havocInitFn != nullptr) {
+      m_dso.releaseFn(m_ipasirContext);
+      m_dso.havocInitFn(seed);
+      m_ipasirContext = m_dso.initFn();
+    }
+  }
+
+  void havoc(uint64_t seed) noexcept override
+  {
+    if (m_dso.havocFn != nullptr) {
+      m_dso.havocFn(m_ipasirContext, seed);
+    }
+  }
+
 
 private:
   IPASIRSolverDSO m_dso;
@@ -159,6 +182,8 @@ IPASIRSolverDSO::IPASIRSolverDSO(std::filesystem::path const& path)
   , solveFn{checkedGetFn<IPASIRSolveFn>(m_dsoContext.get(), "ipasir_solve")}
   , valFn{checkedGetFn<IPASIRValFn>(m_dsoContext.get(), "ipasir_val")}
   , failedFn{checkedGetFn<IPASIRFailedFn>(m_dsoContext.get(), "ipasir_failed")}
+  , havocInitFn{uncheckedGetFn<IncMonkIPASIRHavocInitFn>(m_dsoContext.get(), "incmonk_havoc_init")}
+  , havocFn{uncheckedGetFn<IncMonkIPASIRHavocFn>(m_dsoContext.get(), "incmonk_havoc")}
 {
 }
 

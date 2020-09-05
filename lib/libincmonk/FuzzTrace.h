@@ -32,6 +32,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <optional>
@@ -82,9 +83,21 @@ auto operator!=(SolveCmd const& lhs, SolveCmd const& rhs) noexcept -> bool;
 auto operator<<(std::ostream& stream, SolveCmd const& cmd) -> std::ostream&;
 
 /**
+ * \brief A FuzzTrace havoc command
+ */
+struct HavocCmd {
+  uint64_t seed = 0;
+  bool beforeInit = false;
+};
+
+auto operator==(HavocCmd const& lhs, HavocCmd const& rhs) noexcept -> bool;
+auto operator!=(HavocCmd const& lhs, HavocCmd const& rhs) noexcept -> bool;
+auto operator<<(std::ostream& stream, HavocCmd const& cmd) -> std::ostream&;
+
+/**
  * \brief A FuzzTrace element, containing any FuzzTrace command.
  */
-using FuzzCmd = std::variant<AddClauseCmd, AssumeCmd, SolveCmd>;
+using FuzzCmd = std::variant<AddClauseCmd, AssumeCmd, SolveCmd, HavocCmd>;
 
 auto operator<<(std::ostream& stream, FuzzCmd const& cmd) -> std::ostream&;
 

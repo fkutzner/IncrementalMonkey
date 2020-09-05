@@ -89,6 +89,11 @@ public:
     m_assumptions.clear();
   }
 
+  void executeTraceCommand(HavocCmd&)
+  {
+    // ignored by the oracle
+  }
+
   void solve(FuzzTrace::iterator start, FuzzTrace::iterator stop) override
   {
     for (FuzzTrace::iterator cmd = start; cmd != stop; ++cmd) {
