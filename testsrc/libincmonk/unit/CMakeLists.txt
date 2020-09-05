@@ -8,3 +8,5 @@ nm_add_tool(incmonktests.libincmonk.unit
 )
 
 target_link_libraries(incmonktests.libincmonk.unit PRIVATE libincmonk deps_gsl gtest gmock gtest_main)
+
+add_test(NAME incmonktests.libincmonk.unit COMMAND incmonktests.libincmonk.unit)
