@@ -54,7 +54,7 @@ auto uncheckedGetFn(void* dso, std::string name) -> FnTy
 
 void* checkedOpenDSO(std::filesystem::path const& path)
 {
-  void* result = dlopen(path.string().c_str(), RTLD_LOCAL);
+  void* result = dlopen(path.string().c_str(), RTLD_NOW | RTLD_LOCAL);
   if (result == nullptr) {
     throw DSOLoadError{"Could not open " + path.string()};
   }
