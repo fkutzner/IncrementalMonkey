@@ -39,6 +39,7 @@ struct CommunityAttachmentModelParams {
   std::piecewise_linear_distribution<double> numVariablesPerClauseDistribution;
   std::piecewise_linear_distribution<double> modularityDistribution;
   uint64_t seed = 1;
+  HavocMode havocMode = HavocMode::DISABLED;
 };
 
 /**

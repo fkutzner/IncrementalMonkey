@@ -34,4 +34,6 @@ public:
   virtual auto generate() -> FuzzTrace = 0;
   virtual ~FuzzTraceGenerator() = default;
 };
+
+enum class HavocMode { ENABLED, DISABLED };
 }

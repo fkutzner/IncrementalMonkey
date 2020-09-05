@@ -112,10 +112,7 @@ auto fuzzerMain(FuzzerParams const& params) -> int
 
   std::string fuzzerID = params.fuzzerId.empty() ? createFuzzerID() : params.fuzzerId;
   std::cout << "ID: " << fuzzerID << "\n";
-  std::cout << "Random seed: " << params.seed << std::endl;
-
-  Config cfg = getConfig("", params.seed);
-  auto randomSatGen = createCommunityAttachmentGen(std::move(cfg.communityAttachmentModelParams));
+  std::cout << "Random seed: " << params.seed << "\n";
 
   IPASIRSolverDSO ipasirDSO{params.fuzzedLibrary};
   std::unique_ptr<IPASIRSolver> ipasir;
@@ -128,6 +125,16 @@ auto fuzzerMain(FuzzerParams const& params) -> int
     return EXIT_FAILURE;
   }
 
+  Config cfg = getConfig("", params.seed);
+  if (!params.disableHavoc && supportsHavocing(ipasirDSO)) {
+    cfg.communityAttachmentModelParams.havocMode = HavocMode::ENABLED;
+    std::cout << "Havoc: enabled\n";
+  }
+  else {
+    std::cout << "Havoc: disabled\n";
+  }
+  auto randomSatGen = createCommunityAttachmentGen(std::move(cfg.communityAttachmentModelParams));
+
   Report report;
 
   uint64_t runID = 0;
@@ -135,9 +142,6 @@ auto fuzzerMain(FuzzerParams const& params) -> int
     report.onBeginRound();
 
     FuzzTrace trace = randomSatGen->generate();
-    if (!params.disableHavoc && supportsHavocing(ipasirDSO)) {
-      trace = insertHavocCmds(std::move(trace), params.seed + 1);
-    }
 
     bool crashed = false;
     std::optional<uint64_t> result = 0;
