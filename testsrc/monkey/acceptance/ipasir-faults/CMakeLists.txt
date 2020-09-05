@@ -9,6 +9,13 @@ endfunction()
 
 add_faulty_ipasir_lib(incorrect-ipasir-solver)
 target_compile_definitions(incorrect-ipasir-solver PRIVATE INJECT_CORRECTNESS_FAULT)
+
 add_faulty_ipasir_lib(crashing-ipasir-solver)
 target_compile_definitions(crashing-ipasir-solver PRIVATE INJECT_SEG_FAULT)
+
+add_faulty_ipasir_lib(havoc-supporting-ipasir-solver)
+target_compile_definitions(havoc-supporting-ipasir-solver PRIVATE ENABLE_HAVOC_INTERFACE)
+
+
+
 add_faulty_ipasir_lib(knowngood-ipasir-solver)

@@ -28,6 +28,7 @@
 #include <cryptominisat5/cryptominisat.h>
 #include <ipasir.h>
 
+#include <iostream>
 #include <optional>
 #include <random>
 #include <vector>
@@ -235,4 +236,26 @@ ipasir_set_learn(void* solver, void* data, int max_length, void (*learn)(void* d
 {
   // ignored
 }
+
+#if defined(ENABLE_HAVOC_INTERFACE)
+IPASIR_API void incmonk_havoc_init(uint64_t seed)
+{
+  static bool called = false;
+  if (!called) {
+    // Logging for ctest-based acceptance tests
+    std::cout << "Fuzzed IPASIR lib: called incmonk_havoc_init\n";
+    called = true;
+  }
+}
+
+IPASIR_API void incmonk_havoc(void* solver, uint64_t seed)
+{
+  static bool called = false;
+  if (!called) {
+    // Logging for ctest-based acceptance tests
+    std::cout << "Fuzzed IPASIR lib: called incmonk_havoc\n";
+    called = true;
+  }
+}
+#endif
 }
