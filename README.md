@@ -57,13 +57,13 @@ To perform option fuzzing and to obtain shorter error traces, you can
 trigger e.g. extra simplifications between `ipasir_solve` calls by
 implementing the following two functions:
 
-* `ipasir_havoc(void* ipasirSolver, uint64_t randomVal)` - this function is called at
+* `incmonk_havoc(void* ipasirSolver, uint64_t randomVal)` - this function is called at
    random as part of the trace execution, with changing values of `randomVal`.
-* `ipasir_havoc_init(uint64_t randomVal)` - this function is called before the
+* `incmonk_havoc_init(uint64_t randomVal)` - this function is called before the
    solver under test is created.
 
 Implementing these two functions is **optional**. `monkey` determines their presence
-on startup and disables `ipasir_havoc` and `ipasir_havoc_init` calls when they
+on startup and disables `incmonk_havoc` and `incmonk_havoc_init` calls when they
 are not both supported by the IPASIR library.
 
 
