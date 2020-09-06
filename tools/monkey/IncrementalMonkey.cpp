@@ -30,6 +30,8 @@
 #include "Print.h"
 #include "Replay.h"
 
+#include <libincmonk/Config.h>
+
 #include <CLI/CLI.hpp>
 
 #include <string>
@@ -77,6 +79,9 @@ auto main(int argc, char** argv) -> int
       "--function-name", printParams.funcName, "Function name (default: only a body is printed)");
   printApp->add_option("TRACE", printParams.traceFile, ".mtr file to print")->required();
 
+  CLI::App* printDefaultCfgApp =
+      app.add_subcommand("print-default-cfg", "Prints the default configuration");
+
   app.require_subcommand(1);
   CLI11_PARSE(app, argc, argv);
 
@@ -94,6 +99,10 @@ auto main(int argc, char** argv) -> int
   }
   else if (printApp->parsed()) {
     return incmonk::printMain(printParams);
+  }
+  else if (printDefaultCfgApp->parsed()) {
+    std::cout << incmonk::getDefaultConfigTOML() << "\n";
+    return EXIT_SUCCESS;
   }
 
   // Not reachable

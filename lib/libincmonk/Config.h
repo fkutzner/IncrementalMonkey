@@ -56,4 +56,8 @@ public:
 ///
 /// \throw ConfigParseError   when the builtin configuration contains errors
 auto getDefaultConfig(uint64_t seed) -> Config;
+
+
+/// \brief Returns the default configuration as a TOML string
+auto getDefaultConfigTOML() -> std::string;
 }

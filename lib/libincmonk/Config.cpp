@@ -131,4 +131,9 @@ auto getDefaultConfig(uint64_t seed) -> Config
 
   return result;
 }
+
+auto getDefaultConfigTOML() -> std::string
+{
+  return defaultConfig;
+}
 }
