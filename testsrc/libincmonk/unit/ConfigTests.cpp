@@ -30,6 +30,7 @@
 #include <gtest/gtest.h>
 
 #include <ostream>
+#include <sstream>
 
 
 using ::testing::Eq;
@@ -66,5 +67,37 @@ TEST(ConfigTests_getDefaultConfig, DefaultConfigContainsExpectedValues)
   ASSERT_TRUE(caParams.havocSchedule.has_value());
   EXPECT_THAT(caParams.havocSchedule->density, Eq(ClosedInterval{0.0, 0.1}));
   EXPECT_THAT(caParams.havocSchedule->phaseDensity, Eq(ClosedInterval{0.0, 1.0}));
+}
+
+TEST(ConfigTests_extendConfigViaTOML, WhenTOMLIsInvalid_ThenErrorIsThrown)
+{
+  Config dummyConfig;
+  std::stringstream input{"some string which is invalid TOML"};
+  EXPECT_THROW(extendConfigViaTOML(dummyConfig, input), ConfigParseError);
+}
+
+TEST(ConfigTests_extendConfigViaTOML, WhenTOMLContainsUnknownKey_ThenErrorIsThrown)
+{
+  Config dummyConfig;
+  std::stringstream input{"[[community_attachment_generator]]\nfoo=\"bar\""};
+  EXPECT_THROW(extendConfigViaTOML(dummyConfig, input), ConfigParseError);
+}
+
+TEST(ConfigTests_extendConfigViaTOML, WhenTOMLContainsUnknownSection_ThenErrorIsThrown)
+{
+  Config dummyConfig;
+  std::stringstream input{"[[foo]]"};
+  EXPECT_THROW(extendConfigViaTOML(dummyConfig, input), ConfigParseError);
+}
+
+TEST(ConfigTests_extendConfigViaTOML, WhenTOMLContainsValidCASetting_ThenItIsApplied)
+{
+  Config config;
+  config.communityAttachmentModelParams.solveCmdSchedule.density = ClosedInterval{0.0, 0.4};
+  std::stringstream input{"[[community_attachment_generator]]\nsolve_density_interval=[0.3,0.5]"};
+
+  Config result = extendConfigViaTOML(config, input);
+  EXPECT_THAT(result.communityAttachmentModelParams.solveCmdSchedule.density,
+              ::testing::Eq(ClosedInterval{0.3, 0.5}));
 }
 }

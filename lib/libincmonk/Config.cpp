@@ -89,13 +89,12 @@ auto createCAModelParamsParsers(CommunityAttachmentModelParams& target)
   // clang-format on
 }
 
-void overrideCAModelParams(toml::table const& config, CommunityAttachmentModelParams& target)
+void overrideCAModelParams(toml::node const& caConfig, CommunityAttachmentModelParams& target)
 {
   auto const parsers = createCAModelParamsParsers(target);
   target.havocSchedule = target.havocSchedule.value_or(HavocCmdScheduleParams{});
 
-  toml::node_view caConfig = config["community_attachment_generator"];
-  throwingCheckType(*(caConfig.node()), toml::node_type::array, "invalid document structure");
+  throwingCheckType(caConfig, toml::node_type::array, "invalid document structure");
 
   for (toml::node const& configTable : *caConfig.as_array()) {
     throwingCheckType(configTable, toml::node_type::table, "invalid document structure");
@@ -110,6 +109,23 @@ void overrideCAModelParams(toml::table const& config, CommunityAttachmentModelPa
     }
   }
 }
+
+void applyTOMLConfig(toml::table const& config, Config& target)
+{
+  try {
+    for (auto toplevelItem : config) {
+      if (toplevelItem.first == "community_attachment_generator") {
+        overrideCAModelParams(toplevelItem.second, target.communityAttachmentModelParams);
+      }
+      else {
+        throw TOMLConfigParseError{"invalid item " + toplevelItem.first, config};
+      }
+    }
+  }
+  catch (TOMLConfigParseError const& exception) {
+    throw ConfigParseError{exception.what()};
+  }
+}
 }
 
 auto getDefaultConfig(uint64_t seed) -> Config
@@ -120,15 +136,23 @@ auto getDefaultConfig(uint64_t seed) -> Config
   result.communityAttachmentModelParams.seed = seed + 10;
 
   try {
-    overrideCAModelParams(toml::parse(defaultConfig), result.communityAttachmentModelParams);
-  }
-  catch (TOMLConfigParseError const& exception) {
-    throw ConfigParseError{exception.what()};
+    applyTOMLConfig(toml::parse(defaultConfig), result);
   }
   catch (toml::parse_error const& exception) {
     throw ConfigParseError{exception.what()};
   }
+  return result;
+}
 
+auto extendConfigViaTOML(Config const& toExtend, std::istream& tomlStream) -> Config
+{
+  Config result = toExtend;
+  try {
+    applyTOMLConfig(toml::parse(tomlStream), result);
+  }
+  catch (toml::parse_error const& exception) {
+    throw ConfigParseError{exception.what()};
+  }
   return result;
 }
 

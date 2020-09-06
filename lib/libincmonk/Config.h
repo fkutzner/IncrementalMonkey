@@ -57,6 +57,13 @@ public:
 /// \throw ConfigParseError   when the builtin configuration contains errors
 auto getDefaultConfig(uint64_t seed) -> Config;
 
+/// \brief Creates a configuration updated with partial TOML configuration
+///
+/// \param toExtend   The configuration to extend
+/// \param tomlStream A stream containing a partial, serialized Incremental
+///                   Monkey config
+auto extendConfigViaTOML(Config const& toExtend, std::istream& tomlStream) -> Config;
+
 
 /// \brief Returns the default configuration as a TOML string
 auto getDefaultConfigTOML() -> std::string;

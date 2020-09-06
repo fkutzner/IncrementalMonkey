@@ -37,6 +37,7 @@
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>
 
 #include <cstdint>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <random>
@@ -105,6 +106,28 @@ auto supportsHavocing(IPASIRSolverDSO const& dso)
 }
 }
 
+auto getConfig(FuzzerParams const& params, IPASIRSolverDSO const& ipasirDSO) -> Config
+{
+  Config cfg = getDefaultConfig(params.seed);
+  if (!params.disableHavoc && supportsHavocing(ipasirDSO)) {
+    std::cout << "Havoc: enabled\n";
+  }
+  else {
+    cfg.communityAttachmentModelParams.havocSchedule = std::nullopt;
+    std::cout << "Havoc: disabled\n";
+  }
+
+  if (params.configFile.has_value()) {
+    std::ifstream inputFile{*params.configFile};
+    if (!inputFile) {
+      throw std::runtime_error("could not open the config file");
+    }
+    return extendConfigViaTOML(cfg, inputFile);
+  }
+  else {
+    return cfg;
+  }
+}
 
 auto fuzzerMain(FuzzerParams const& params) -> int
 {
@@ -125,15 +148,16 @@ auto fuzzerMain(FuzzerParams const& params) -> int
     return EXIT_FAILURE;
   }
 
-  Config cfg = getDefaultConfig(params.seed);
-  if (!params.disableHavoc && supportsHavocing(ipasirDSO)) {
-    std::cout << "Havoc: enabled\n";
+  std::unique_ptr<Config> cfg;
+  try {
+    cfg = std::make_unique<Config>(getConfig(params, ipasirDSO));
   }
-  else {
-    cfg.communityAttachmentModelParams.havocSchedule = std::nullopt;
-    std::cout << "Havoc: disabled\n";
+  catch (std::runtime_error const& error) {
+    std::cerr << "Failed loading the configuration: " << error.what() << "\n";
+    return EXIT_FAILURE;
   }
-  auto randomSatGen = createCommunityAttachmentGen(std::move(cfg.communityAttachmentModelParams));
+
+  auto randomSatGen = createCommunityAttachmentGen(std::move(cfg->communityAttachmentModelParams));
 
   Report report;
 

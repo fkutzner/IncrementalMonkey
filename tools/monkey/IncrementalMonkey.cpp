@@ -45,6 +45,7 @@ auto main(int argc, char** argv) -> int
 
   uint64_t fuzzMaxRounds = 0;
   uint64_t fuzzTimeoutMillis = 0;
+  std::filesystem::path fuzzConfigFile;
 
   std::string const version = INCMONK_VERSION;
   CLI::App app{"A random-testing tool for IPASIR implementations\nVersion " + version, "monkey"};
@@ -60,6 +61,10 @@ auto main(int argc, char** argv) -> int
   fuzzApp->add_flag("--no-havoc", fuzzerParams.disableHavoc, "Disable havoc commands");
   fuzzApp->add_option(
       "--seed", fuzzerParams.seed, "Random number generator seed for problem generators");
+  CLI::Option* fuzzCfgFileOpt =
+      fuzzApp->add_option("--config",
+                          fuzzConfigFile,
+                          "Problem generator configuration file. See print-default-cfg command");
 
   fuzzApp->add_option("LIB", fuzzerParams.fuzzedLibrary, "Shared library file of the IPASIR solver")
       ->required();
@@ -91,6 +96,9 @@ auto main(int argc, char** argv) -> int
     }
     if (!fuzzTimeoutMillisOpt->empty()) {
       fuzzerParams.timeout = std::chrono::milliseconds{fuzzTimeoutMillis};
+    }
+    if (!fuzzCfgFileOpt->empty()) {
+      fuzzerParams.configFile = fuzzConfigFile;
     }
     return incmonk::fuzzerMain(fuzzerParams);
   }

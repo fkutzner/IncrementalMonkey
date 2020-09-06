@@ -34,6 +34,7 @@
 namespace incmonk {
 struct FuzzerParams {
   std::filesystem::path fuzzedLibrary;
+  std::optional<std::filesystem::path> configFile;
   std::optional<uint64_t> roundsLimit;
   std::optional<std::chrono::milliseconds> timeout;
   std::string fuzzerId;
