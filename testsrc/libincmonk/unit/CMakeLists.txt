@@ -1,4 +1,6 @@
 nm_add_tool(incmonktests.libincmonk.unit
+  ConfigTests.cpp
+  ConfigTomlUtilsTests.cpp
   FileUtils.cpp
   FileUtils.h
   ForkTests.cpp
@@ -7,6 +9,13 @@ nm_add_tool(incmonktests.libincmonk.unit
   OracleTests.cpp
 )
 
-target_link_libraries(incmonktests.libincmonk.unit PRIVATE libincmonk deps_gsl gtest gmock gtest_main)
+target_link_libraries(incmonktests.libincmonk.unit PRIVATE
+  libincmonk
+  deps_gsl
+  deps_tomlxx
+  gtest
+  gmock
+  gtest_main
+)
 
 add_test(NAME incmonktests.libincmonk.unit COMMAND incmonktests.libincmonk.unit)

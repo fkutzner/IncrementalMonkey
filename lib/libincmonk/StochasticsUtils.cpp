@@ -28,6 +28,8 @@
 
 namespace incmonk {
 
+ClosedInterval::ClosedInterval() noexcept : m_min(0.0), m_max(0.0) {}
+
 ClosedInterval::ClosedInterval(double min, double max) noexcept : m_min{min}, m_max{max}
 {
   if (m_max < m_min) {
@@ -49,6 +51,16 @@ auto ClosedInterval::max() const noexcept -> double
 auto ClosedInterval::size() const noexcept -> double
 {
   return m_max - m_min;
+}
+
+auto operator==(ClosedInterval const& lhs, ClosedInterval const& rhs) noexcept -> bool
+{
+  return &lhs == &rhs || (lhs.min() == rhs.min() && lhs.max() == rhs.max());
+}
+
+auto operator!=(ClosedInterval const& lhs, ClosedInterval const& rhs) noexcept -> bool
+{
+  return !(lhs == rhs);
 }
 
 

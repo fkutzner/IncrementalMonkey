@@ -28,11 +28,15 @@
 
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>
 
-#include <optional>
+#include <istream>
+#include <stdexcept>
 #include <string>
 
 namespace incmonk {
 
+/// \brief Main Incremental Monkey config structure
+///
+/// This structure contains configuration for all of monkey's subsystems.
 struct Config {
   std::string configName;
   std::string fuzzerID;
@@ -42,5 +46,14 @@ struct Config {
   CommunityAttachmentModelParams communityAttachmentModelParams;
 };
 
-auto getConfig(std::string const& overridesTOML, uint64_t seed) -> Config;
+class ConfigParseError : public std::runtime_error {
+public:
+  ConfigParseError(char const* what) : std::runtime_error(what) {}
+  virtual ~ConfigParseError() = default;
+};
+
+/// \brief Returns the default Incremental Monkey configuration.
+///
+/// \throw ConfigParseError   when the builtin configuration contains errors
+auto getDefaultConfig(uint64_t seed) -> Config;
 }

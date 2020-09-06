@@ -25,58 +25,110 @@
 */
 
 #include <libincmonk/Config.h>
+#include <libincmonk/ConfigTomlUtils.h>
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>
+
+#include <cstdint>
+#include <istream>
+#include <unordered_map>
+#include <vector>
 
 #include <tomlplusplus/toml.hpp>
 
-#include <cstdint>
-#include <random>
-#include <vector>
 
 namespace incmonk {
 namespace {
 
-auto createPWDist(std::vector<double> const& vals, std::vector<double> const& weights)
-    -> std::piecewise_linear_distribution<double>
-{
-  return std::piecewise_linear_distribution<double>(vals.begin(), vals.end(), weights.begin());
-}
+constexpr char const* defaultConfig = R"z(
+[[community_attachment_generator]]
+# Distributions are specified as piecewise linear distributions, given as pairs [value, weight]
+# See https://en.cppreference.com/w/cpp/numeric/random/piecewise_linear_distribution
 
-auto createDefaultCAModelParams(uint64_t seed) -> CommunityAttachmentModelParams
+num_clauses_distribution = [[200.0, 0.0], [400.0, 1.0], [600.0, 0.0], [800.0, 0.0], [1000.0, 1.0], [1200.0, 0.0]]
+clause_size_distribution = [[2.0, 0.0], [4.0, 1.0], [10.0, 0.0]]
+num_vars_per_num_clauses_distribution = [[0.05, 1.0], [0.25, 1.0]]
+modularities_distribution = [[0.7, 0.0], [0.8, 0.0], [1.0, 0.0]]
+
+# The average density of ipasir_solve calls (among clause additions) is picked
+# at random the interval given in solve_density_interval.
+solve_density_interval = [0.001, 0.05]
+
+# The average density of solve-to-solve phases containing ipasir_assume calls
+# is picked at random from the interval given in assumption_phase_density_interval.
+assumption_phase_density_interval = [0.5, 0.7]
+
+# The average density of ipasir_assume calls (among clause additions) is picked
+# at random from the interval given in assumption_density_interval.
+assumption_density_interval = [0.0, 0.2]
+
+# The average density of solve-to-solve phases containing incmonk_havoc calls
+# is picked at random from the interval given in havoc_phase_density_interval.
+havoc_phase_density_interval = [0.0, 1.0]
+
+# The average density of incmonk_havoc (among clause additions, solve calls,
+# assume calls) is picked at random from the interval given in havoc_density_interval.
+havoc_density_interval = [0.0, 0.1]
+)z";
+
+
+auto createCAModelParamsParsers(CommunityAttachmentModelParams& target)
+    -> std::unordered_map<std::string, TOMLNodeParserFn>
 {
   // clang-format off
-  std::vector<double> const       problemSizes = {200.0, 400.0, 600.0, 800.0, 1000.0, 1200.0};
-  std::vector<double> const problemSizeWeights = {  0.0,   1.0,   0.0,   0.0,    1.0,    0.0};
-
-  std::vector<double> const       clauseSizes = {2.0, 4.0, 10.0};
-  std::vector<double> const clauseSizeWeights = {0.0, 1.0,  0.0};
-
-  std::vector<double> const       varsPerClauses = {0.05, 0.25};
-  std::vector<double> const varsPerClauseWeights = {1.0,  1.0};
-
-  std::vector<double> const      modularities = {0.0, 0.7, 0.8, 1.0};
-  std::vector<double> const modularityWeights = {0.0, 0.0, 1.0, 0.0};
+  return {
+    {"havoc_phase_density_interval", createIntervalParser(target.havocSchedule->phaseDensity)},
+    {"havoc_density_interval", createIntervalParser(target.havocSchedule->density)},
+    {"solve_density_interval", createIntervalParser(target.solveCmdSchedule.density)},
+    {"assumption_density_interval", createIntervalParser(target.solveCmdSchedule.assumptionDensity)},
+    {"assumption_phase_density_interval", createIntervalParser(target.solveCmdSchedule.assumptionPhaseDensity)},
+    {"num_clauses_distribution", createPiecewiseLinearDistParser(target.numClausesDistribution)},
+    {"clause_size_distribution", createPiecewiseLinearDistParser(target.clauseSizeDistribution)},
+    {"num_vars_per_num_clauses_distribution",createPiecewiseLinearDistParser(target.numVariablesPerClauseDistribution)},
+    {"modularities_distribution", createPiecewiseLinearDistParser(target.modularityDistribution)}
+  };
   // clang-format on
-
-  CommunityAttachmentModelParams result;
-  result.numClausesDistribution = createPWDist(problemSizes, problemSizeWeights);
-  result.clauseSizeDistribution = createPWDist(clauseSizes, clauseSizeWeights);
-  result.numVariablesPerClauseDistribution = createPWDist(varsPerClauses, varsPerClauseWeights);
-  result.modularityDistribution = createPWDist(modularities, modularityWeights);
-  result.seed = seed;
-  result.havocSchedule = HavocCmdScheduleParams{};
-  result.solveCmdSchedule = SolveCmdScheduleParams{};
-  return result;
 }
 
+void overrideCAModelParams(toml::table const& config, CommunityAttachmentModelParams& target)
+{
+  auto const parsers = createCAModelParamsParsers(target);
+  target.havocSchedule = target.havocSchedule.value_or(HavocCmdScheduleParams{});
+
+  toml::node_view caConfig = config["community_attachment_generator"];
+  throwingCheckType(*(caConfig.node()), toml::node_type::array, "invalid document structure");
+
+  for (toml::node const& configTable : *caConfig.as_array()) {
+    throwingCheckType(configTable, toml::node_type::table, "invalid document structure");
+
+    for (auto configItem : *configTable.as_table()) {
+      if (auto parser = parsers.find(configItem.first); parser != parsers.end()) {
+        parser->second(configItem.second);
+      }
+      else {
+        throw TOMLConfigParseError{"invalid key " + configItem.first, configItem.second};
+      }
+    }
+  }
+}
 }
 
-auto getConfig(std::string const&, uint64_t seed) -> Config
+auto getDefaultConfig(uint64_t seed) -> Config
 {
   Config result;
   result.configName = "Default";
   result.seed = seed;
-  result.communityAttachmentModelParams = createDefaultCAModelParams(seed);
+  result.communityAttachmentModelParams.seed = seed + 10;
+
+  try {
+    overrideCAModelParams(toml::parse(defaultConfig), result.communityAttachmentModelParams);
+  }
+  catch (TOMLConfigParseError const& exception) {
+    throw ConfigParseError{exception.what()};
+  }
+  catch (toml::parse_error const& exception) {
+    throw ConfigParseError{exception.what()};
+  }
+
   return result;
 }
 }

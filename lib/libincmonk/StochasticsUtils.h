@@ -34,6 +34,7 @@ namespace incmonk {
 
 class ClosedInterval {
 public:
+  ClosedInterval() noexcept;
   ClosedInterval(double min, double max) noexcept;
   auto min() const noexcept -> double;
   auto max() const noexcept -> double;
@@ -43,6 +44,9 @@ private:
   double m_min;
   double m_max;
 };
+
+auto operator==(ClosedInterval const& lhs, ClosedInterval const& rhs) noexcept -> bool;
+auto operator!=(ClosedInterval const& lhs, ClosedInterval const& rhs) noexcept -> bool;
 
 class RandomDensityEventSchedule {
 public:

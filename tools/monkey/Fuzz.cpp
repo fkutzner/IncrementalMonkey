@@ -125,7 +125,7 @@ auto fuzzerMain(FuzzerParams const& params) -> int
     return EXIT_FAILURE;
   }
 
-  Config cfg = getConfig("", params.seed);
+  Config cfg = getDefaultConfig(params.seed);
   if (!params.disableHavoc && supportsHavocing(ipasirDSO)) {
     std::cout << "Havoc: enabled\n";
   }
