@@ -41,13 +41,16 @@ namespace {
 
 constexpr char const* defaultConfig = R"z(
 [[community_attachment_generator]]
-# Distributions are specified as piecewise linear distributions, given as pairs [value, weight]
+# Distributions are specified as piecewise linear distributions, given as array of pairs [value, weight]
 # See https://en.cppreference.com/w/cpp/numeric/random/piecewise_linear_distribution
 
 num_clauses_distribution = [[200.0, 0.0], [400.0, 1.0], [600.0, 0.0], [800.0, 0.0], [1000.0, 1.0], [1200.0, 0.0]]
 clause_size_distribution = [[2.0, 0.0], [4.0, 1.0], [10.0, 0.0]]
+
+# Determines the number of variables in relation to the number of clauses
 num_vars_per_num_clauses_distribution = [[0.05, 1.0], [0.25, 1.0]]
-modularities_distribution = [[0.7, 0.0], [0.8, 0.0], [1.0, 0.0]]
+
+modularity_distribution = [[0.7, 0.0], [0.8, 0.0], [1.0, 0.0]]
 
 # The average density of ipasir_solve calls (among clause additions) is picked
 # at random the interval given in solve_density_interval.
@@ -84,7 +87,7 @@ auto createCAModelParamsParsers(CommunityAttachmentModelParams& target)
     {"num_clauses_distribution", createPiecewiseLinearDistParser(target.numClausesDistribution)},
     {"clause_size_distribution", createPiecewiseLinearDistParser(target.clauseSizeDistribution)},
     {"num_vars_per_num_clauses_distribution",createPiecewiseLinearDistParser(target.numVariablesPerClauseDistribution)},
-    {"modularities_distribution", createPiecewiseLinearDistParser(target.modularityDistribution)}
+    {"modularity_distribution", createPiecewiseLinearDistParser(target.modularityDistribution)}
   };
   // clang-format on
 }
