@@ -2,7 +2,7 @@
 
 This changelog's format is based on [keep a changelog 1.0.0](https://keepachangelog.com/en/1.0.0/).
 
-## [Unreleased]
+## [0.1.0] - 2020-09-07
 
 - Added random-testing procedures for IPASIR SAT solvers
 - Added CryptoMiniSat test oracle
