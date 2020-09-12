@@ -7,7 +7,7 @@ This changelog's format is based on [keep a changelog 1.0.0](https://keepachange
 ### Added
 - Added the `print-icnf` command, printing traces as ICNF problem instances
 - Added Simplifier's Paradise, a random incremental SAT instance generator for particularly simplifiable problems
-- Trace-reading now read the trace from the standard input when `-` is specified as the trace filename.
+- Trace-reading commands now read the trace from the standard input when `-` is specified as the trace filename.
 
 ### Changed
 
