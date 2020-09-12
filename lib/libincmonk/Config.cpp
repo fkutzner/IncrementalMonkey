@@ -27,6 +27,7 @@
 #include <libincmonk/Config.h>
 #include <libincmonk/ConfigTomlUtils.h>
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>
+#include <libincmonk/generators/SimplifiersParadise.h>
 
 #include <cstdint>
 #include <istream>
@@ -71,6 +72,15 @@ havoc_phase_density_interval = [0.0, 1.0]
 # The average density of incmonk_havoc (among clause additions, solve calls,
 # assume calls) is picked at random from the interval given in havoc_density_interval.
 havoc_density_interval = [0.0, 0.1]
+
+[[simplifiers_paradise_generator]]
+# Semantics are analogous to those in community_attachment_generator
+num_clauses_distribution = [[200.0, 0.0], [400.0, 1.0], [600.0, 0.0], [800.0, 0.0], [1000.0, 1.0], [1200.0, 0.0]]
+solve_density_interval = [0.001, 0.05]
+assumption_phase_density_interval = [0.5, 0.7]
+assumption_density_interval = [0.0, 0.2]
+havoc_phase_density_interval = [0.0, 1.0]
+havoc_density_interval = [0.0, 0.1]
 )z";
 
 
@@ -92,9 +102,47 @@ auto createCAModelParamsParsers(CommunityAttachmentModelParams& target)
   // clang-format on
 }
 
+auto createSimplifiersParadiseParamsParsers(SimplifiersParadiseParams& target)
+    -> std::unordered_map<std::string, TOMLNodeParserFn>
+{
+  // clang-format off
+  return {
+    {"havoc_phase_density_interval", createIntervalParser(target.havocSchedule->phaseDensity)},
+    {"havoc_density_interval", createIntervalParser(target.havocSchedule->density)},
+    {"solve_density_interval", createIntervalParser(target.solveCmdSchedule.density)},
+    {"assumption_density_interval", createIntervalParser(target.solveCmdSchedule.assumptionDensity)},
+    {"assumption_phase_density_interval", createIntervalParser(target.solveCmdSchedule.assumptionPhaseDensity)},
+    {"num_clauses_distribution", createPiecewiseLinearDistParser(target.numClausesDistribution)},
+  };
+  // clang-format on
+}
+
+
 void overrideCAModelParams(toml::node const& caConfig, CommunityAttachmentModelParams& target)
 {
   auto const parsers = createCAModelParamsParsers(target);
+  target.havocSchedule = target.havocSchedule.value_or(HavocCmdScheduleParams{});
+
+  throwingCheckType(caConfig, toml::node_type::array, "invalid document structure");
+
+  for (toml::node const& configTable : *caConfig.as_array()) {
+    throwingCheckType(configTable, toml::node_type::table, "invalid document structure");
+
+    for (auto configItem : *configTable.as_table()) {
+      if (auto parser = parsers.find(configItem.first); parser != parsers.end()) {
+        parser->second(configItem.second);
+      }
+      else {
+        throw TOMLConfigParseError{"invalid key " + configItem.first, configItem.second};
+      }
+    }
+  }
+}
+
+void overrideSimplifiersParadiseParams(toml::node const& caConfig,
+                                       SimplifiersParadiseParams& target)
+{
+  auto const parsers = createSimplifiersParadiseParamsParsers(target);
   target.havocSchedule = target.havocSchedule.value_or(HavocCmdScheduleParams{});
 
   throwingCheckType(caConfig, toml::node_type::array, "invalid document structure");
@@ -120,6 +168,9 @@ void applyTOMLConfig(toml::table const& config, Config& target)
       if (toplevelItem.first == "community_attachment_generator") {
         overrideCAModelParams(toplevelItem.second, target.communityAttachmentModelParams);
       }
+      else if (toplevelItem.first == "simplifiers_paradise_generator") {
+        overrideSimplifiersParadiseParams(toplevelItem.second, target.simplifiersParadiseParams);
+      }
       else {
         throw TOMLConfigParseError{"invalid item " + toplevelItem.first, config};
       }
@@ -137,6 +188,7 @@ auto getDefaultConfig(uint64_t seed) -> Config
   result.configName = "Default";
   result.seed = seed;
   result.communityAttachmentModelParams.seed = seed + 10;
+  result.simplifiersParadiseParams.seed = seed + 20;
 
   try {
     applyTOMLConfig(toml::parse(defaultConfig), result);

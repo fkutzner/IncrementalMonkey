@@ -27,6 +27,7 @@
 #pragma once
 
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>
+#include <libincmonk/generators/SimplifiersParadise.h>
 
 #include <istream>
 #include <stdexcept>
@@ -44,6 +45,7 @@ struct Config {
   std::optional<uint64_t> timeout;
 
   CommunityAttachmentModelParams communityAttachmentModelParams;
+  SimplifiersParadiseParams simplifiersParadiseParams;
 };
 
 class ConfigParseError : public std::runtime_error {

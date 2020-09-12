@@ -67,6 +67,15 @@ TEST(ConfigTests_getDefaultConfig, DefaultConfigContainsExpectedValues)
   ASSERT_TRUE(caParams.havocSchedule.has_value());
   EXPECT_THAT(caParams.havocSchedule->density, Eq(ClosedInterval{0.0, 0.1}));
   EXPECT_THAT(caParams.havocSchedule->phaseDensity, Eq(ClosedInterval{0.0, 1.0}));
+
+  SimplifiersParadiseParams const& spParams = result.simplifiersParadiseParams;
+  EXPECT_THAT(spParams.numClausesDistribution, PiecewiseLinearDistInBounds(200.0, 1200.0));
+  EXPECT_THAT(spParams.solveCmdSchedule.density, Eq(ClosedInterval{0.001, 0.05}));
+  EXPECT_THAT(spParams.solveCmdSchedule.assumptionPhaseDensity, Eq(ClosedInterval{0.5, 0.7}));
+  EXPECT_THAT(spParams.solveCmdSchedule.assumptionDensity, Eq(ClosedInterval{0.0, 0.2}));
+  ASSERT_TRUE(spParams.havocSchedule.has_value());
+  EXPECT_THAT(spParams.havocSchedule->density, Eq(ClosedInterval{0.0, 0.1}));
+  EXPECT_THAT(spParams.havocSchedule->phaseDensity, Eq(ClosedInterval{0.0, 1.0}));
 }
 
 TEST(ConfigTests_extendConfigViaTOML, WhenTOMLIsInvalid_ThenErrorIsThrown)
@@ -98,6 +107,17 @@ TEST(ConfigTests_extendConfigViaTOML, WhenTOMLContainsValidCASetting_ThenItIsApp
 
   Config result = extendConfigViaTOML(config, input);
   EXPECT_THAT(result.communityAttachmentModelParams.solveCmdSchedule.density,
+              ::testing::Eq(ClosedInterval{0.3, 0.5}));
+}
+
+TEST(ConfigTests_extendConfigViaTOML, WhenTOMLContainsValidSPSetting_ThenItIsApplied)
+{
+  Config config;
+  config.simplifiersParadiseParams.solveCmdSchedule.density = ClosedInterval{0.0, 0.4};
+  std::stringstream input{"[[simplifiers_paradise_generator]]\nsolve_density_interval=[0.3,0.5]"};
+
+  Config result = extendConfigViaTOML(config, input);
+  EXPECT_THAT(result.simplifiersParadiseParams.solveCmdSchedule.density,
               ::testing::Eq(ClosedInterval{0.3, 0.5}));
 }
 }
