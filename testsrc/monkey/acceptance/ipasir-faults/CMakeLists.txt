@@ -26,7 +26,7 @@ function(add_ipasir_faults_test)
   cmake_parse_arguments(ARGP "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
   add_test(
-    NAME "${ARGP_NAME}" COMMAND monkey ${ARGP_MONKEY_CLI_ARGS} $<TARGET_FILE:${ARGP_LIB_TARGET}>
+    NAME "${ARGP_NAME}" COMMAND monkey ${ARGP_MONKEY_CLI_ARGS} --config "${CMAKE_CURRENT_LIST_DIR}/easy-problems.cfg"  $<TARGET_FILE:${ARGP_LIB_TARGET}>
   )
   
   if (ARGP_FAIL_REGEX)
