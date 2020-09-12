@@ -27,6 +27,7 @@
 #include <libincmonk/FastRand.h>
 #include <libincmonk/generators/MuxGenerator.h>
 
+#include <cassert>
 #include <random>
 
 namespace incmonk {
