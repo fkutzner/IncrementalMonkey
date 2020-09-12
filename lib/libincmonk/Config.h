@@ -27,7 +27,7 @@
 #pragma once
 
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>
-#include <libincmonk/generators/SimplifiersParadise.h>
+#include <libincmonk/generators/SimplifiersParadiseGenerator.h>
 
 #include <istream>
 #include <stdexcept>

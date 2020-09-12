@@ -27,7 +27,7 @@
 #include <libincmonk/Config.h>
 #include <libincmonk/ConfigTomlUtils.h>
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>
-#include <libincmonk/generators/SimplifiersParadise.h>
+#include <libincmonk/generators/SimplifiersParadiseGenerator.h>
 
 #include <cstdint>
 #include <istream>

@@ -35,6 +35,7 @@
 #include <libincmonk/Stopwatch.h>
 
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>
+#include <libincmonk/generators/SimplifiersParadiseGenerator.h>
 
 #include <cstdint>
 #include <fstream>
@@ -157,7 +158,7 @@ auto fuzzerMain(FuzzerParams const& params) -> int
     return EXIT_FAILURE;
   }
 
-  auto randomSatGen = createCommunityAttachmentGen(std::move(cfg->communityAttachmentModelParams));
+  auto randomSatGen = createSimplifiersParadiseGen(std::move(cfg->simplifiersParadiseParams));
 
   Report report;
 

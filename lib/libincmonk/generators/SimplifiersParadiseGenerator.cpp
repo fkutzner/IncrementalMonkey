@@ -27,7 +27,7 @@
 #include <libincmonk/CNF.h>
 #include <libincmonk/FastRand.h>
 #include <libincmonk/FuzzTrace.h>
-#include <libincmonk/generators/SimplifiersParadise.h>
+#include <libincmonk/generators/SimplifiersParadiseGenerator.h>
 
 #include <algorithm>
 #include <random>
