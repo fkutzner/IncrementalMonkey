@@ -2,6 +2,10 @@
 
 This changelog's format is based on [keep a changelog 1.0.0](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+- Added Simplifier's Paradise, a random incremental SAT instance generator for particularly simplifiable problems
+
 ## [0.1.0] - 2020-09-07
 
 - Added random-testing procedures for IPASIR SAT solvers

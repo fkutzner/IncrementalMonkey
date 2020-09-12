@@ -35,6 +35,7 @@
 #include <libincmonk/Stopwatch.h>
 
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>
+#include <libincmonk/generators/MuxGenerator.h>
 #include <libincmonk/generators/SimplifiersParadiseGenerator.h>
 
 #include <cstdint>
@@ -158,7 +159,13 @@ auto fuzzerMain(FuzzerParams const& params) -> int
     return EXIT_FAILURE;
   }
 
-  auto randomSatGen = createSimplifiersParadiseGen(std::move(cfg->simplifiersParadiseParams));
+  // clang-format off
+  std::vector<MuxGeneratorSpec> generators;
+  generators.emplace_back(1.0, createCommunityAttachmentGen(std::move(cfg->communityAttachmentModelParams)));
+  generators.emplace_back(1.0, createSimplifiersParadiseGen(std::move(cfg->simplifiersParadiseParams)));
+  // clang-format on
+  auto randomTraceGen = createMuxGenerator(std::move(generators), params.seed + 100);
+
 
   Report report;
 
@@ -166,7 +173,7 @@ auto fuzzerMain(FuzzerParams const& params) -> int
   while (true) {
     report.onBeginRound();
 
-    FuzzTrace trace = randomSatGen->generate();
+    FuzzTrace trace = randomTraceGen->generate();
 
     bool crashed = false;
     std::optional<uint64_t> result = 0;
