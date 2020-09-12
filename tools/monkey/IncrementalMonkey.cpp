@@ -76,7 +76,12 @@ auto main(int argc, char** argv) -> int
   replayApp
       ->add_option("LIB", replayParams.solverLibrary, "Shared library file of the IPASIR solver")
       ->required();
-  replayApp->add_option("TRACE", replayParams.traceFile, ".mtr file to apply")->required();
+  replayApp
+      ->add_option("TRACE",
+                   replayParams.traceFile,
+                   ".mtr file to apply. If - is specified, the trace is read from the standard "
+                   "input instead.")
+      ->required();
 
 
   CLI::App* printCPPApp = app.add_subcommand("print-cpp", "Print traces as C++11 code");
@@ -84,10 +89,20 @@ auto main(int argc, char** argv) -> int
       "--solver-varname", printParams.solverVarName, "Solver variable name (default: solver)");
   printCPPApp->add_option(
       "--function-name", printParams.funcName, "Function name (default: only a body is printed)");
-  printCPPApp->add_option("TRACE", printParams.traceFile, ".mtr file to print")->required();
+  printCPPApp
+      ->add_option("TRACE",
+                   printParams.traceFile,
+                   ".mtr file to print. If - is specified, the trace is read from the standard "
+                   "input instead.")
+      ->required();
 
   CLI::App* printIcnfApp = app.add_subcommand("print-icnf", "Print traces as ICNF instances");
-  printIcnfApp->add_option("TRACE", printICNFParams.traceFile, ".mtr file to print")->required();
+  printIcnfApp
+      ->add_option("TRACE",
+                   printICNFParams.traceFile,
+                   ".mtr file to print. If - is specified, the trace is read from the standard "
+                   "input instead.")
+      ->required();
 
   CLI::App* printDefaultCfgApp =
       app.add_subcommand("print-default-cfg", "Prints the default configuration");

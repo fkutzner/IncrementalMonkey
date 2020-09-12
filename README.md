@@ -4,6 +4,12 @@ A random testing tool for IPASIR SAT solvers
 
 ## Usage
 
+Incremental Monkey can be used as a standalone tool or
+as a an oracle-equipped fuzzing target for other fuzzers, e.g.
+`afl-fuzz` or `honggfuzz`.
+
+### Standalone mode
+
 Compile your solver as a shared library exposing the IPASIR 
 interface (for instance `solver.so`) and run
 ```
@@ -45,6 +51,19 @@ rsp. invalid failed assumption settings are not checked in the
 C++ program.
 
 
+### Fuzzing target mode
+
+You can hook up Incremental Monkey to other fuzzers by using the `replay`
+command, e.g.
+
+```
+# afl-fuzz -i corpus -o fuzz-out -- bin/monkey replay path/to/your/solver.so -
+```
+
+If you are using code instrumentation (eg. via `afl-clang`), make
+sure to **preload the IPASIR library** by adding its full path to the
+environment variable `LD_PRELOAD` rsp. `DYLD_INSERT_LIBRARIES`. You
+should also compile Incremental Monkey with your fuzzer's instrumentation.
 
 ### Broken example solvers
 

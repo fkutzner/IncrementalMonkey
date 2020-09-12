@@ -26,6 +26,8 @@
 
 #include "PrintCPP.h"
 
+#include "Utils.h"
+
 #include <libincmonk/FuzzTrace.h>
 #include <libincmonk/FuzzTracePrinters.h>
 
@@ -35,7 +37,7 @@ namespace incmonk {
 auto printCPPMain(PrintCPPParams const& params) -> int
 {
   try {
-    FuzzTrace trace = loadTrace(params.traceFile);
+    FuzzTrace trace = loadTraceFromFileOrStdin(params.traceFile);
 
     if (!params.funcName.empty()) {
       std::cout << "#include <ipasir.h>\n#include <initializer_list>\n#include <cassert>\n\n";

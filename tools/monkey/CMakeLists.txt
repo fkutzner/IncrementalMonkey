@@ -8,6 +8,8 @@ nm_add_tool(monkey
   PrintICNF.h
   Replay.cpp
   Replay.h
+  Utils.cpp
+  Utils.h
 )
 
 target_compile_definitions(monkey PRIVATE "INCMONK_VERSION=\"${CMAKE_PROJECT_VERSION}\"")

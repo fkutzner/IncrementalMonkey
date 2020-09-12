@@ -24,42 +24,15 @@
 
 */
 
-#include "Replay.h"
-
-#include "Utils.h"
+#pragma once
 
 #include <libincmonk/FuzzTrace.h>
-#include <libincmonk/FuzzTraceExec.h>
-#include <libincmonk/IPASIRSolver.h>
 
-#include <cstdio>
-#include <iostream>
+#include <filesystem>
 
 namespace incmonk {
-auto replayMain(ReplayParams const& params) -> int
-{
-  try {
-    IPASIRSolverDSO ipasirDSO{params.solverLibrary};
-    auto ipasir = createIPASIRSolver(ipasirDSO);
-    FuzzTrace toReplay = loadTraceFromFileOrStdin(params.traceFile);
-
-    auto failure = executeTrace(toReplay.begin(), toReplay.end(), *ipasir);
-
-    if (failure.has_value()) {
-      std::cout << "Failed: test oracle did not accept result\n";
-      return EXIT_FAILURE;
-    }
-  }
-  catch (IOException const& error) {
-    std::cerr << "Error: " << error.what() << "\n";
-    return EXIT_FAILURE;
-  }
-  catch (DSOLoadError const& error) {
-    std::cerr << "Error: " << error.what() << "\n";
-    return EXIT_FAILURE;
-  }
-
-  std::cout << "Passed\n";
-  return EXIT_SUCCESS;
-}
+/**
+ * Wrapper for loadTrace() that reads from stdin if the path is equal to "-"
+ */
+auto loadTraceFromFileOrStdin(std::filesystem::path const& path) -> FuzzTrace;
 }

@@ -144,4 +144,11 @@ void storeTrace(FuzzTrace::const_iterator first,
  * \throw IOException   on file I/O failures and file format errors
  */
 auto loadTrace(std::filesystem::path const& filename) -> FuzzTrace;
+
+/**
+ * \brief Loads the trace from the given C file stream
+ * 
+ * \throw IOException   on file I/O failures and file format errors
+ */
+auto loadTrace(FILE& stream) -> FuzzTrace;
 }

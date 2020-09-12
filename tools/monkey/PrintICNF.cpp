@@ -26,6 +26,8 @@
 
 #include "PrintICNF.h"
 
+#include "Utils.h"
+
 #include <libincmonk/FuzzTrace.h>
 #include <libincmonk/FuzzTracePrinters.h>
 #include <libincmonk/generators/SimplifiersParadiseGenerator.h>

@@ -353,14 +353,21 @@ auto loadTrace(std::filesystem::path const& filename) -> FuzzTrace
   }
   auto closeInput = gsl::finally([input]() { fclose(input); });
 
-  if (!readMagicCookie(input)) {
+  return loadTrace(*input);
+}
+
+auto loadTrace(FILE& stream) -> FuzzTrace
+{
+  FuzzTrace result;
+
+  if (!readMagicCookie(&stream)) {
     throw IOException{"Bad file format: magic cookie not found"};
   }
 
-  std::optional<FuzzCmd> currentCmd = readFuzzCmd(input);
+  std::optional<FuzzCmd> currentCmd = readFuzzCmd(&stream);
   while (currentCmd.has_value()) {
     result.push_back(*currentCmd);
-    currentCmd = readFuzzCmd(input);
+    currentCmd = readFuzzCmd(&stream);
   }
 
   return result;
