@@ -26,6 +26,8 @@ nm_add_library(libincmonk STATIC
   generators/FuzzTraceGenerator.h
   generators/RandomSATGenerator.cpp
   generators/RandomSATGenerator.h
+  generators/SimplifiersParadise.cpp
+  generators/SimplifiersParadise.h
 )
 
 target_include_directories(libincmonk PUBLIC ${PROJECT_SOURCE_DIR}/lib)
