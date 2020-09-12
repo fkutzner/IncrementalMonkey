@@ -24,7 +24,7 @@
 
 */
 
-#include "Print.h"
+#include "PrintCPP.h"
 
 #include <libincmonk/FuzzTrace.h>
 #include <libincmonk/FuzzTracePrinters.h>
@@ -32,7 +32,7 @@
 #include <iostream>
 
 namespace incmonk {
-auto printMain(PrintParams const& params) -> int
+auto printCPPMain(PrintCPPParams const& params) -> int
 {
   try {
     FuzzTrace trace = loadTrace(params.traceFile);

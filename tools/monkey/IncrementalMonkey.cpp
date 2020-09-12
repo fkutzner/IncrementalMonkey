@@ -27,7 +27,7 @@
 */
 
 #include "Fuzz.h"
-#include "Print.h"
+#include "PrintCPP.h"
 #include "PrintICNF.h"
 #include "Replay.h"
 
@@ -42,7 +42,7 @@ auto main(int argc, char** argv) -> int
 {
   incmonk::FuzzerParams fuzzerParams;
   incmonk::ReplayParams replayParams;
-  incmonk::PrintParams printParams;
+  incmonk::PrintCPPParams printParams;
   incmonk::PrintICNFParams printICNFParams;
 
   uint64_t fuzzMaxRounds = 0;
@@ -79,12 +79,12 @@ auto main(int argc, char** argv) -> int
   replayApp->add_option("TRACE", replayParams.traceFile, ".mtr file to apply")->required();
 
 
-  CLI::App* printApp = app.add_subcommand("print", "Print traces as C++11 code");
-  printApp->add_option(
+  CLI::App* printCPPApp = app.add_subcommand("print-cpp", "Print traces as C++11 code");
+  printCPPApp->add_option(
       "--solver-varname", printParams.solverVarName, "Solver variable name (default: solver)");
-  printApp->add_option(
+  printCPPApp->add_option(
       "--function-name", printParams.funcName, "Function name (default: only a body is printed)");
-  printApp->add_option("TRACE", printParams.traceFile, ".mtr file to print")->required();
+  printCPPApp->add_option("TRACE", printParams.traceFile, ".mtr file to print")->required();
 
   CLI::App* printIcnfApp = app.add_subcommand("print-icnf", "Print traces as ICNF instances");
   printIcnfApp->add_option("TRACE", printICNFParams.traceFile, ".mtr file to print")->required();
@@ -111,8 +111,8 @@ auto main(int argc, char** argv) -> int
   else if (replayApp->parsed()) {
     return incmonk::replayMain(replayParams);
   }
-  else if (printApp->parsed()) {
-    return incmonk::printMain(printParams);
+  else if (printCPPApp->parsed()) {
+    return incmonk::printCPPMain(printParams);
   }
   else if (printIcnfApp->parsed()) {
     return incmonk::printICNFMain(printICNFParams);

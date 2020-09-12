@@ -31,11 +31,11 @@
 #include <string>
 
 namespace incmonk {
-struct PrintParams {
+struct PrintCPPParams {
   std::filesystem::path traceFile;
   std::string funcName;
   std::string solverVarName = "solver";
 };
 
-auto printMain(PrintParams const& params) -> int;
+auto printCPPMain(PrintCPPParams const& params) -> int;
 }
