@@ -26,39 +26,12 @@
 
 #pragma once
 
-#include <libincmonk/FuzzTrace.h>
-
-#include <ostream>
-#include <string>
+#include <filesystem>
 
 namespace incmonk {
-/**
- * \brief Translates the given trace to a corresponding C++11 function body
- *   
- * No `ipasir_init` or `ipasir_destroy` calls are generated.
- * 
- * Usage example: generate regression tests for error traces.
- * 
- * \param first       The trace [first, last) to be translated
- * \param last
- * \param solverName  The variable name of the IPASIR solver pointer (ie. the `void*` argument)
- * 
- * \returns           A C++11 function body containing IPASIR calls corresponding to the trace
- */
-auto toCxxFunctionBody(FuzzTrace::const_iterator first,
-                       FuzzTrace::const_iterator last,
-                       std::string const& solverName) -> std::string;
+struct PrintICNFParams {
+  std::filesystem::path traceFile;
+};
 
-
-/**
- * \brief Translates the given trace to a corresponding ICNF instance
- * 
- * \param first       The trace [first, last) to be translated
- * \param last
- * 
- * \returns           An ICNF instance corresponding to the trace
- */
-void toICNF(FuzzTrace::const_iterator first,
-            FuzzTrace::const_iterator last,
-            std::ostream& targetStream);
+auto printICNFMain(PrintICNFParams const& params) -> int;
 }

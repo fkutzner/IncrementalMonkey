@@ -4,6 +4,8 @@ nm_add_tool(monkey
   IncrementalMonkey.cpp
   Print.cpp
   Print.h
+  PrintICNF.cpp
+  PrintICNF.h
   Replay.cpp
   Replay.h
 )

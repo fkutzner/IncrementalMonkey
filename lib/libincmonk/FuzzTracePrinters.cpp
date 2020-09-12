@@ -26,6 +26,10 @@
 
 #include <libincmonk/FuzzTracePrinters.h>
 
+#include <algorithm>
+#include <optional>
+#include <variant>
+
 namespace incmonk {
 namespace {
 auto toCommaSeparatedStr(std::vector<int> vec)
@@ -100,5 +104,104 @@ auto toCxxFunctionBody(FuzzTrace::const_iterator first,
     std::visit([&result, &argName](auto&& x) { result += toString(argName, x) + "\n"; }, *cmd);
   }
   return result;
+}
+
+
+namespace {
+auto getMaxVar(CNFClause const& clause) -> std::optional<CNFLit>
+{
+  if (clause.empty()) {
+    return std::nullopt;
+  }
+
+  CNFClause tmp = clause;
+  std::transform(tmp.begin(), tmp.end(), tmp.begin(), [](CNFLit lit) { return std::abs(lit); });
+  return *(std::max_element(tmp.begin(), tmp.end()));
+}
+
+auto getMaxVar(FuzzTrace::const_iterator first, FuzzTrace::const_iterator last) -> CNFLit
+{
+  CNFLit maxVar = 0;
+  for (auto it = first; it != last; ++it) {
+    if (AddClauseCmd const* addClause = std::get_if<AddClauseCmd>(&*it); addClause != nullptr) {
+      maxVar = std::max(maxVar, getMaxVar(addClause->clauseToAdd).value_or(0));
+    }
+    else if (AssumeCmd const* assumeCmd = std::get_if<AssumeCmd>(&*it); assumeCmd != nullptr) {
+      maxVar = std::max(maxVar, getMaxVar(assumeCmd->assumptions).value_or(0));
+    }
+  }
+  return maxVar;
+}
+
+auto getNumClauses(FuzzTrace::const_iterator first, FuzzTrace::const_iterator last)
+    -> FuzzTrace::size_type
+{
+  FuzzTrace::size_type result = 0;
+  for (auto it = first; it != last; ++it) {
+    if (AddClauseCmd const* addClause = std::get_if<AddClauseCmd>(&*it); addClause != nullptr) {
+      ++result;
+    }
+  }
+  return result;
+}
+
+void printICNFClause(std::vector<CNFLit> const& clause, std::ostream& target)
+{
+  for (CNFLit lit : clause) {
+    target << lit << " ";
+  }
+  target << "0\n";
+}
+
+
+void printICNFFuzzCmd(SolveCmd const&,
+                      std::vector<CNFLit>& currentAssumptions,
+                      std::ostream& target)
+{
+  target << "a ";
+  printICNFClause(currentAssumptions, target);
+  currentAssumptions.clear();
+}
+
+void printICNFFuzzCmd(AssumeCmd const& cmd, std::vector<CNFLit>& currentAssumptions, std::ostream&)
+{
+  currentAssumptions.insert(
+      currentAssumptions.end(), cmd.assumptions.begin(), cmd.assumptions.end());
+}
+
+void printICNFFuzzCmd(AddClauseCmd const& cmd, std::vector<CNFLit>&, std::ostream& target)
+{
+  printICNFClause(cmd.clauseToAdd, target);
+}
+
+void printICNFFuzzCmd(HavocCmd const& cmd, std::vector<CNFLit>&, std::ostream& target)
+{
+  if (cmd.beforeInit) {
+    target << "c incmonk_havoc_init " << cmd.seed << "\n";
+  }
+  else {
+    target << "c incmonk_havoc " << cmd.seed << "\n";
+  }
+}
+
+void printICNFFuzzCmd(FuzzCmd const& cmd,
+                      std::vector<CNFLit>& currentAssumptions,
+                      std::ostream& target)
+{
+  std::visit([&](auto&& concreteCmd) { printICNFFuzzCmd(concreteCmd, currentAssumptions, target); },
+             cmd);
+}
+}
+
+void toICNF(FuzzTrace::const_iterator first,
+            FuzzTrace::const_iterator last,
+            std::ostream& targetStream)
+{
+  targetStream << "p inccnf " << getMaxVar(first, last) << " " << getNumClauses(first, last)
+               << "\n";
+  std::vector<CNFLit> currentAssumptions;
+  for (auto it = first; it != last; ++it) {
+    printICNFFuzzCmd(*it, currentAssumptions, targetStream);
+  }
 }
 }

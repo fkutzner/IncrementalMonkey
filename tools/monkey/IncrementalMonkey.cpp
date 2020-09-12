@@ -28,6 +28,7 @@
 
 #include "Fuzz.h"
 #include "Print.h"
+#include "PrintICNF.h"
 #include "Replay.h"
 
 #include <libincmonk/Config.h>
@@ -42,6 +43,7 @@ auto main(int argc, char** argv) -> int
   incmonk::FuzzerParams fuzzerParams;
   incmonk::ReplayParams replayParams;
   incmonk::PrintParams printParams;
+  incmonk::PrintICNFParams printICNFParams;
 
   uint64_t fuzzMaxRounds = 0;
   uint64_t fuzzTimeoutMillis = 0;
@@ -84,8 +86,12 @@ auto main(int argc, char** argv) -> int
       "--function-name", printParams.funcName, "Function name (default: only a body is printed)");
   printApp->add_option("TRACE", printParams.traceFile, ".mtr file to print")->required();
 
+  CLI::App* printIcnfApp = app.add_subcommand("print-icnf", "Print traces as ICNF instances");
+  printIcnfApp->add_option("TRACE", printICNFParams.traceFile, ".mtr file to print")->required();
+
   CLI::App* printDefaultCfgApp =
       app.add_subcommand("print-default-cfg", "Prints the default configuration");
+
 
   app.require_subcommand(1);
   CLI11_PARSE(app, argc, argv);
@@ -107,6 +113,9 @@ auto main(int argc, char** argv) -> int
   }
   else if (printApp->parsed()) {
     return incmonk::printMain(printParams);
+  }
+  else if (printIcnfApp->parsed()) {
+    return incmonk::printICNFMain(printICNFParams);
   }
   else if (printDefaultCfgApp->parsed()) {
     std::cout << incmonk::getDefaultConfigTOML() << "\n";

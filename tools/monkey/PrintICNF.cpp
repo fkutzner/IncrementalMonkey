@@ -24,41 +24,27 @@
 
 */
 
-#pragma once
+#include "PrintICNF.h"
 
 #include <libincmonk/FuzzTrace.h>
+#include <libincmonk/FuzzTracePrinters.h>
+#include <libincmonk/generators/SimplifiersParadiseGenerator.h>
 
-#include <ostream>
-#include <string>
+#include <iostream>
 
 namespace incmonk {
-/**
- * \brief Translates the given trace to a corresponding C++11 function body
- *   
- * No `ipasir_init` or `ipasir_destroy` calls are generated.
- * 
- * Usage example: generate regression tests for error traces.
- * 
- * \param first       The trace [first, last) to be translated
- * \param last
- * \param solverName  The variable name of the IPASIR solver pointer (ie. the `void*` argument)
- * 
- * \returns           A C++11 function body containing IPASIR calls corresponding to the trace
- */
-auto toCxxFunctionBody(FuzzTrace::const_iterator first,
-                       FuzzTrace::const_iterator last,
-                       std::string const& solverName) -> std::string;
+auto printICNFMain(PrintICNFParams const& params) -> int
+{
+  try {
+    FuzzTrace trace = loadTrace(params.traceFile);
+    toICNF(trace.begin(), trace.end(), std::cout);
+  }
+  catch (IOException const& error) {
+    std::cerr << error.what() << "\n";
+    return EXIT_FAILURE;
+  }
 
+  return EXIT_SUCCESS;
+}
 
-/**
- * \brief Translates the given trace to a corresponding ICNF instance
- * 
- * \param first       The trace [first, last) to be translated
- * \param last
- * 
- * \returns           An ICNF instance corresponding to the trace
- */
-void toICNF(FuzzTrace::const_iterator first,
-            FuzzTrace::const_iterator last,
-            std::ostream& targetStream);
 }

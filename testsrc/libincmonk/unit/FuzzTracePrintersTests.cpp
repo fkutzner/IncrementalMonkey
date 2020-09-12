@@ -33,6 +33,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -93,4 +94,66 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_toCxxFunctionBody,
 );
 // clang-format on
 
+
+class FuzzTraceTests_toICNF : public ::testing::TestWithParam<std::tuple<FuzzTrace, std::string>> {
+public:
+  virtual ~FuzzTraceTests_toICNF() = default;
+};
+
+TEST_P(FuzzTraceTests_toICNF, TestSuite)
+{
+  FuzzTrace input = std::get<0>(GetParam());
+  std::string expectedResult = std::get<1>(GetParam());
+
+  std::stringstream resultCollector;
+  toICNF(input.begin(), input.end(), resultCollector);
+  std::string result = resultCollector.str();
+  std::replace(result.begin(), result.end(), '\n', ' ');
+
+  while (!result.empty() && result.back() == ' ') {
+    result.resize(result.size() - 1);
+  }
+
+  expectedResult.erase(std::remove(expectedResult.begin(), expectedResult.end(), '\n'),
+                       expectedResult.end());
+
+  EXPECT_THAT(result, ::testing::Eq(expectedResult)) << "Result ICNF:\n" << resultCollector.str();
+}
+
+// clang-format off
+INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_toICNF,
+  ::testing::Values(
+    std::make_tuple(FuzzTrace{}, "p inccnf 0 0"),
+
+    std::make_tuple(FuzzTrace{AddClauseCmd{}}, "p inccnf 0 1 0"),
+    std::make_tuple(FuzzTrace{AddClauseCmd{{1}}}, "p inccnf 1 1 1 0"),
+    std::make_tuple(FuzzTrace{AddClauseCmd{{1, -2, -3}}}, "p inccnf 3 1 1 -2 -3 0"),
+
+    std::make_tuple(FuzzTrace{AssumeCmd{}}, "p inccnf 0 0"),
+    std::make_tuple(FuzzTrace{AssumeCmd{{1, -2, -3}}}, "p inccnf 3 0"),
+
+    std::make_tuple(FuzzTrace{SolveCmd{}}, "p inccnf 0 0 a 0"),
+    std::make_tuple(FuzzTrace{SolveCmd{false}}, "p inccnf 0 0 a 0"),
+    std::make_tuple(FuzzTrace{SolveCmd{true}}, "p inccnf 0 0 a 0"),
+
+    std::make_tuple(
+      FuzzTrace{
+        AssumeCmd{{1, -2, -3}},
+        SolveCmd{true}
+      },
+      "p inccnf 3 0 a 1 -2 -3 0"
+    ),
+
+    std::make_tuple(
+      FuzzTrace{
+        AddClauseCmd{{1, -2}},
+        AddClauseCmd{{-2, 4}},
+        AssumeCmd{{1}},
+        SolveCmd{true}
+      },
+      "p inccnf 4 2 1 -2 0 -2 4 0 a 1 0"
+    )
+  )
+);
+// clang-format on
 }

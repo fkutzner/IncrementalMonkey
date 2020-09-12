@@ -4,10 +4,12 @@ This changelog's format is based on [keep a changelog 1.0.0](https://keepachange
 
 ## [Unreleased]
 
+### Added
+- Added ICNF trace printer
 - Added Simplifier's Paradise, a random incremental SAT instance generator for particularly simplifiable problems
 
 ## [0.1.0] - 2020-09-07
-
+### Added
 - Added random-testing procedures for IPASIR SAT solvers
 - Added CryptoMiniSat test oracle
 - Added a random SAT instance generator based on the Community Attachment Model [1]
