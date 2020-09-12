@@ -83,8 +83,11 @@ havoc_phase_density_interval = [0.0, 1.0]
 havoc_density_interval = [0.0, 0.1]
 )z";
 
+template <typename T>
+auto createTraceGenParsers(T& target) -> std::unordered_map<std::string, TOMLNodeParserFn>;
 
-auto createCAModelParamsParsers(CommunityAttachmentModelParams& target)
+template <>
+auto createTraceGenParsers<CommunityAttachmentModelParams>(CommunityAttachmentModelParams& target)
     -> std::unordered_map<std::string, TOMLNodeParserFn>
 {
   // clang-format off
@@ -102,7 +105,8 @@ auto createCAModelParamsParsers(CommunityAttachmentModelParams& target)
   // clang-format on
 }
 
-auto createSimplifiersParadiseParamsParsers(SimplifiersParadiseParams& target)
+template <>
+auto createTraceGenParsers<SimplifiersParadiseParams>(SimplifiersParadiseParams& target)
     -> std::unordered_map<std::string, TOMLNodeParserFn>
 {
   // clang-format off
@@ -118,31 +122,10 @@ auto createSimplifiersParadiseParamsParsers(SimplifiersParadiseParams& target)
 }
 
 
-void overrideCAModelParams(toml::node const& caConfig, CommunityAttachmentModelParams& target)
+template <typename ConfigStruct>
+void overrideTraceGenConfig(toml::node const& caConfig, ConfigStruct& target)
 {
-  auto const parsers = createCAModelParamsParsers(target);
-  target.havocSchedule = target.havocSchedule.value_or(HavocCmdScheduleParams{});
-
-  throwingCheckType(caConfig, toml::node_type::array, "invalid document structure");
-
-  for (toml::node const& configTable : *caConfig.as_array()) {
-    throwingCheckType(configTable, toml::node_type::table, "invalid document structure");
-
-    for (auto configItem : *configTable.as_table()) {
-      if (auto parser = parsers.find(configItem.first); parser != parsers.end()) {
-        parser->second(configItem.second);
-      }
-      else {
-        throw TOMLConfigParseError{"invalid key " + configItem.first, configItem.second};
-      }
-    }
-  }
-}
-
-void overrideSimplifiersParadiseParams(toml::node const& caConfig,
-                                       SimplifiersParadiseParams& target)
-{
-  auto const parsers = createSimplifiersParadiseParamsParsers(target);
+  auto const parsers = createTraceGenParsers<ConfigStruct>(target);
   target.havocSchedule = target.havocSchedule.value_or(HavocCmdScheduleParams{});
 
   throwingCheckType(caConfig, toml::node_type::array, "invalid document structure");
@@ -166,10 +149,10 @@ void applyTOMLConfig(toml::table const& config, Config& target)
   try {
     for (auto toplevelItem : config) {
       if (toplevelItem.first == "community_attachment_generator") {
-        overrideCAModelParams(toplevelItem.second, target.communityAttachmentModelParams);
+        overrideTraceGenConfig(toplevelItem.second, target.communityAttachmentModelParams);
       }
       else if (toplevelItem.first == "simplifiers_paradise_generator") {
-        overrideSimplifiersParadiseParams(toplevelItem.second, target.simplifiersParadiseParams);
+        overrideTraceGenConfig(toplevelItem.second, target.simplifiersParadiseParams);
       }
       else {
         throw TOMLConfigParseError{"invalid item " + toplevelItem.first, config};
