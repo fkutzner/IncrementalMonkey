@@ -11,6 +11,8 @@ nm_add_library(libincmonk STATIC
   FuzzTrace.h
   FuzzTraceExec.cpp
   FuzzTraceExec.h
+  FuzzTracePrinters.cpp
+  FuzzTracePrinters.h
   InterspersionSchedulers.cpp
   InterspersionSchedulers.h
   IPASIRSolver.cpp

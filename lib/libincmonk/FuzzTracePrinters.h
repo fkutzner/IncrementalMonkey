@@ -24,37 +24,27 @@
 
 */
 
-#include "Print.h"
+#pragma once
 
 #include <libincmonk/FuzzTrace.h>
-#include <libincmonk/FuzzTracePrinters.h>
 
-#include <iostream>
+#include <string>
 
 namespace incmonk {
-auto printMain(PrintParams const& params) -> int
-{
-  try {
-    FuzzTrace trace = loadTrace(params.traceFile);
-
-    if (!params.funcName.empty()) {
-      std::cout << "#include <ipasir.h>\n#include <initializer_list>\n#include <cassert>\n\n";
-      std::cout << "void " << params.funcName << "() {\n";
-      std::cout << "void* " << params.solverVarName << " = ipasir_init();\n";
-      std::cout << "if (" << params.solverVarName << " == nullptr) {\n  return;\n}\n";
-    }
-
-    std::cout << toCxxFunctionBody(trace.begin(), trace.end(), params.solverVarName);
-
-    if (!params.funcName.empty()) {
-      std::cout << "\nipasir_release(" << params.solverVarName << ");\n}\n";
-    }
-  }
-  catch (IOException const& error) {
-    std::cerr << error.what() << "\n";
-    return EXIT_FAILURE;
-  }
-
-  return EXIT_SUCCESS;
-}
+/**
+ * \brief Translates the given trace to a corresponding C++11 function body
+ *   
+ * No `ipasir_init` or `ipasir_destroy` calls are generated.
+ * 
+ * Usage example: generate regression tests for error traces.
+ * 
+ * \param first       The trace [first, last) to be translated
+ * \param last
+ * \param solverName  The variable name of the IPASIR solver pointer (ie. the `void*` argument)
+ * 
+ * \returns           A C++11 function body containing IPASIR calls corresponding to `trace`
+ */
+auto toCxxFunctionBody(FuzzTrace::const_iterator first,
+                       FuzzTrace::const_iterator last,
+                       std::string const& solverName) -> std::string;
 }

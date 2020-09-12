@@ -30,6 +30,7 @@
 #include <libincmonk/generators/SimplifiersParadiseGenerator.h>
 
 #include <algorithm>
+#include <cassert>
 #include <random>
 #include <vector>
 

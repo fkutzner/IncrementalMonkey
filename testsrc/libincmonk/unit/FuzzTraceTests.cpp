@@ -35,62 +35,6 @@
 
 namespace incmonk {
 
-class FuzzTraceTests_toCxxFunctionBody
-  : public ::testing::TestWithParam<std::tuple<FuzzTrace, std::string>> {
-public:
-  virtual ~FuzzTraceTests_toCxxFunctionBody() = default;
-};
-
-TEST_P(FuzzTraceTests_toCxxFunctionBody, TestSuite)
-{
-  FuzzTrace input = std::get<0>(GetParam());
-  std::string expectedResult = std::get<1>(GetParam());
-  std::string result = toCxxFunctionBody(input.begin(), input.end(), "solver");
-
-  std::string const resultWithNewlines = result;
-  result.erase(std::remove(result.begin(), result.end(), '\n'), result.end());
-  expectedResult.erase(std::remove(expectedResult.begin(), expectedResult.end(), '\n'),
-                       expectedResult.end());
-
-  EXPECT_THAT(result, ::testing::Eq(expectedResult)) << "Result trace:\n" << resultWithNewlines;
-}
-
-// clang-format off
-INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_toCxxFunctionBody,
-  ::testing::Values(
-    std::make_tuple(FuzzTrace{}, ""),
-
-    std::make_tuple(FuzzTrace{AddClauseCmd{}}, "ipasir_add(solver, 0);"),
-    std::make_tuple(FuzzTrace{AddClauseCmd{{1}}}, "for (int lit : {1,0}) {  ipasir_add(solver, lit);}"),
-    std::make_tuple(FuzzTrace{AddClauseCmd{{1, -2, -3}}},
-      "for (int lit : {1,-2,-3,0}) {  ipasir_add(solver, lit);}"),
-
-    std::make_tuple(FuzzTrace{AssumeCmd{}}, ""),
-    std::make_tuple(FuzzTrace{AssumeCmd{{1}}}, "for (int assump : {1}) {  ipasir_assume(solver, assump);}"),
-    std::make_tuple(FuzzTrace{AssumeCmd{{1, -2, -3}}},
-      "for (int assump : {1,-2,-3}) {  ipasir_assume(solver, assump);}"),
-
-    std::make_tuple(FuzzTrace{SolveCmd{}}, "ipasir_solve(solver);"),
-    std::make_tuple(FuzzTrace{SolveCmd{false}}, "{int result = ipasir_solve(solver); assert(result == 20);}"),
-    std::make_tuple(FuzzTrace{SolveCmd{true}}, "{int result = ipasir_solve(solver); assert(result == 10);}"),
-
-    std::make_tuple(
-      FuzzTrace{
-        AddClauseCmd{{1, -2}},
-        AddClauseCmd{{-2, 4}},
-        AssumeCmd{{1}},
-        SolveCmd{true}
-      },
-      "for (int lit : {1,-2,0}) {  ipasir_add(solver, lit);}"
-      "for (int lit : {-2,4,0}) {  ipasir_add(solver, lit);}"
-      "for (int assump : {1}) {  ipasir_assume(solver, assump);}"
-      "{int result = ipasir_solve(solver); assert(result == 10);}"
-    )
-  )
-);
-// clang-format on
-
-
 class RecordingIPASIRSolver : public IPASIRSolver {
 public:
   RecordingIPASIRSolver(std::vector<IPASIRSolver::Result> const& solveResults)
@@ -141,7 +85,7 @@ public:
 
   auto getValue(CNFLit) const noexcept -> TBool override { return t_indet; }
 
-  auto isFailed(CNFLit lit) const noexcept -> bool override { return false; }
+  auto isFailed(CNFLit) const noexcept -> bool override { return false; }
 
 private:
   std::vector<IPASIRSolver::Result> m_solveResults;

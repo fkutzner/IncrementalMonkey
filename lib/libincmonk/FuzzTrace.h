@@ -120,24 +120,6 @@ auto applyTrace(FuzzTrace::const_iterator first,
                 IPASIRSolver& target) -> FuzzTrace::const_iterator;
 
 
-/**
- * \brief Translates the given trace to a corresponding C++11 function body
- *   
- * No `ipasir_init` or `ipasir_destroy` calls are generated.
- * 
- * Usage example: generate regression tests for error traces.
- * 
- * \param first       The trace [first, last) to be translated
- * \param last
- * \param solverName  The variable name of the IPASIR solver pointer (ie. the `void*` argument)
- * 
- * \returns           A C++11 function body containing IPASIR calls corresponding to `trace`
- */
-auto toCxxFunctionBody(FuzzTrace::const_iterator first,
-                       FuzzTrace::const_iterator last,
-                       std::string const& solverName) -> std::string;
-
-
 class IOException : public std::runtime_error {
 public:
   IOException(std::string const& what);
