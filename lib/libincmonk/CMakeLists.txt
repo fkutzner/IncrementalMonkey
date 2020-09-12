@@ -24,6 +24,8 @@ nm_add_library(libincmonk STATIC
   generators/CommunityAttachmentGenerator.cpp
   generators/CommunityAttachmentGenerator.h
   generators/FuzzTraceGenerator.h
+  generators/MuxGenerator.cpp
+  generators/MuxGenerator.h
   generators/SimplifiersParadiseGenerator.cpp
   generators/SimplifiersParadiseGenerator.h
 )
