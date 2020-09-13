@@ -31,6 +31,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <random>
 #include <vector>
 
@@ -83,16 +84,22 @@ auto splitOffDefinition(CNFClause const& clause, LiteralFactory& litFactory, uin
   return result;
 }
 
-auto createSubsumed(CNFClause const& clause, LiteralFactory&, uint64_t) -> std::vector<CNFClause>
+struct CNFLitVarCompare {
+  auto operator()(CNFLit lhs, CNFLit rhs) { return std::abs(lhs) < std::abs(rhs); }
+};
+
+auto createSubsumed(CNFClause const& clause, LiteralFactory&, uint64_t randomVal)
+    -> std::vector<CNFClause>
 {
   std::vector<CNFClause> result;
   result.push_back(clause);
 
   CNFClause subsumed = clause;
-  CNFLit const min = *std::min_element(clause.begin(), clause.end());
+  CNFLit const min = *std::min_element(clause.begin(), clause.end(), CNFLitVarCompare{});
 
+  int embellishmentSign = (randomVal % 2 == 1) ? 1 : -1;
   for (CNFLit embellishment = min / 2; embellishment > 0; embellishment /= 2) {
-    subsumed.push_back(embellishment);
+    subsumed.push_back(embellishment * embellishmentSign);
   }
 
   result.emplace_back(std::move(subsumed));
@@ -100,17 +107,18 @@ auto createSubsumed(CNFClause const& clause, LiteralFactory&, uint64_t) -> std::
   return result;
 }
 
-auto hideInSSR(CNFClause const& clause, LiteralFactory& litFactory, uint64_t)
+auto hideInSSR(CNFClause const& clause, LiteralFactory& litFactory, uint64_t randomVal)
     -> std::vector<CNFClause>
 {
-  CNFLit const min = *std::min_element(clause.begin(), clause.end());
+  CNFLit const min = *std::min_element(clause.begin(), clause.end(), CNFLitVarCompare{});
   CNFLit const resolveAt = (min > 1) ? min / 2 : litFactory.newLit();
 
   std::vector<CNFClause> result{clause, clause};
   result[0].push_back(-resolveAt);
 
+  int embellishmentSign = (randomVal % 2 == 1) ? 1 : -1;
   for (CNFLit embellishment = resolveAt / 2; embellishment > 0; embellishment /= 2) {
-    result[1].push_back(embellishment);
+    result[1].push_back(embellishment * embellishmentSign);
   }
 
   return result;
