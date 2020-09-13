@@ -22,63 +22,28 @@
 # shall not be used in advertising or otherwise to promote the sale, use or
 # other dealings in this Software without prior written authorization.
 
-cmake_minimum_required(VERSION 3.12)
-cmake_policy(VERSION 3.12)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED 17)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-project(IncrementalMonkey VERSION 0.1.0)
+nm_enforce_lang_standard_adherence()
+nm_use_high_compiler_warning_level()
 
-option(IM_ENABLE_COVERAGE OFF "Enable code coverage instrumentation")
+if(APPLE)
+  set(CMAKE_MACOSX_RPATH ON)
+  set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-### NiceMake setup
-set(NM_CONF_GTEST_TAG "release-1.10.0")
-set(NM_OPT_PREFIX "IM")
-include(etc/cmake/nicemake/NiceMake.cmake)
+  # See https://gitlab.kitware.com/cmake/community/wikis/doc/cmake/RPATH-handling
+  list(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+  if("${isSystemDir}" STREQUAL "-1")
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+  endif()
+endif()
 
-
-### Compiler & linker configuration
-include(etc/cmake/CompileOptions.cmake)
-
-
-### Build dependencies
-add_subdirectory(deps)
-
-
-## Build Incremental Monkey
-add_subdirectory(lib)
-add_subdirectory(tools)
-
-
-### Testing
-nm_add_gtest()
-enable_testing()
-add_subdirectory(testsrc)
-
-
-nm_add_doxygen()
-include(etc/cmake/HelperTargets.cmake)
-
-
-### Installation
-set(INCMONK_PKG_NAME "IncrementalMonkey")
-
-install(
-  TARGETS monkey
-  EXPORT ${INCMONK_PKG_NAME}
-  RUNTIME DESTINATION bin
-  LIBRARY DESTINATION lib
-  ARCHIVE DESTINATION lib
-)
-
-install(
-  FILES
-    ${CMAKE_CURRENT_LIST_DIR}/LICENSE
-    ${CMAKE_CURRENT_LIST_DIR}/LICENSES-3rdParty
-    ${CMAKE_CURRENT_LIST_DIR}/README.md
-  DESTINATION
-    share/doc/${INCMONK_PKG_NAME}
-)
-
-# Generate and install CMake scripts for find_package
-install(EXPORT ${INCMONK_PKG_NAME}
-        DESTINATION lib/cmake/${INCMONK_PKG_NAME}
-        FILE "${INCMONK_PKG_NAME}Config.cmake")
+if(IM_ENABLE_COVERAGE)
+  if(NOT NM_COMPILING_WITH_GNULIKE)
+    message(FATAL_ERROR "Code coverage instrumentation not supported for this compiler, deactivate IM_ENABLE_COVERAGE")
+  endif()
+  nm_add_compile_options(PRIVATE --coverage)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
+endif()
