@@ -26,9 +26,11 @@
 
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <stdexcept>
+#include <variant>
 #include <vector>
 
 namespace incmonk {
@@ -56,6 +58,11 @@ public:
   virtual ~TestIOException() = default;
 };
 
-auto slurpUInt32File(std::filesystem::path const& path) -> std::optional<std::vector<uint32_t>>;
-void writeUInt32VecToFile(std::vector<uint32_t> const& data, std::filesystem::path const& path);
+using BinaryTrace = std::vector<std::variant<uint8_t, uint16_t, uint32_t, uint64_t>>;
+
+void assertFileContains(std::filesystem::path const& path, BinaryTrace const& expected);
+void writeBinaryTrace(std::filesystem::path const& path, BinaryTrace const& trace);
+
+//auto slurpUInt32File(std::filesystem::path const& path) -> std::optional<std::vector<uint32_t>>;
+//void writeUInt32VecToFile(std::vector<uint32_t> const& data, std::filesystem::path const& path);
 }

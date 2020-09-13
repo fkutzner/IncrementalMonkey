@@ -12,6 +12,7 @@ This changelog's format is based on [keep a changelog 1.0.0](https://keepachange
 ### Changed
 
 - Renamed the `print` command to `print-cpp`
+- Made the failure trace format more fuzzer-friendly
 
 ## [0.1.0] - 2020-09-07
 ### Added

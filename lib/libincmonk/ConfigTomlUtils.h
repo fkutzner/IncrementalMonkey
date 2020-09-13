@@ -27,7 +27,7 @@
 /**
  * \file
  * 
- * \brief Utility functions for the TOML++ library
+ * \brief Utility functions related to the TOML++ library used for parsing config files
  */
 
 #pragma once

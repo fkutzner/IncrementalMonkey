@@ -85,7 +85,7 @@ auto splitOffDefinition(CNFClause const& clause, LiteralFactory& litFactory, uin
 }
 
 struct CNFLitVarCompare {
-  auto operator()(CNFLit lhs, CNFLit rhs) { return std::abs(lhs) < std::abs(rhs); }
+  auto operator()(CNFLit lhs, CNFLit rhs) const noexcept { return std::abs(lhs) < std::abs(rhs); }
 };
 
 auto createSubsumed(CNFClause const& clause, LiteralFactory&, uint64_t randomVal)

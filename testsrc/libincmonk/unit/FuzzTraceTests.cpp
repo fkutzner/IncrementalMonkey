@@ -32,6 +32,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <utility>
+#include <vector>
 
 namespace incmonk {
 
@@ -183,7 +184,7 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_applyTrace,
 
 
 class FuzzTraceTests_loadStoreTrace
-  : public ::testing::TestWithParam<std::tuple<FuzzTrace, std::vector<uint32_t>>> {
+  : public ::testing::TestWithParam<std::tuple<FuzzTrace, BinaryTrace>> {
 public:
   virtual ~FuzzTraceTests_loadStoreTrace() = default;
 };
@@ -195,20 +196,16 @@ TEST_P(FuzzTraceTests_loadStoreTrace, TestSuite_store)
 
   storeTrace(input.begin(), input.end(), tempFile.getPath());
 
-  auto maybeResult = slurpUInt32File(tempFile.getPath());
-  ASSERT_TRUE(maybeResult.has_value());
-
-  std::vector<std::uint32_t> result = *maybeResult;
-  std::vector<std::uint32_t> expected = std::get<1>(GetParam());
-  EXPECT_THAT(result, ::testing::Eq(expected));
+  BinaryTrace const& expectedBinary = std::get<1>(GetParam());
+  assertFileContains(tempFile.getPath(), expectedBinary);
 }
 
 TEST_P(FuzzTraceTests_loadStoreTrace, TestSuite_loadCorrectlyFormattedFile)
 {
   PathWithDeleter tempFile = createTempFile();
-  std::vector<std::uint32_t> input = std::get<1>(GetParam());
+  BinaryTrace const& input = std::get<1>(GetParam());
 
-  writeUInt32VecToFile(input, tempFile.getPath());
+  writeBinaryTrace(tempFile.getPath(), input);
 
   FuzzTrace expected = std::get<0>(GetParam());
   FuzzTrace result = loadTrace(tempFile.getPath());
@@ -218,40 +215,33 @@ TEST_P(FuzzTraceTests_loadStoreTrace, TestSuite_loadCorrectlyFormattedFile)
 
 
 namespace {
-constexpr static uint32_t magicCookie = 0xF2950000;
-
+constexpr static uint32_t magicCookie = 0xF2950001;
 }
 
 // clang-format off
 INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_loadStoreTrace,
   ::testing::Values(
-    std::make_tuple(FuzzTrace{}, std::vector<uint32_t>{magicCookie}),
+    std::make_tuple(FuzzTrace{}, BinaryTrace{uint32_t{magicCookie}}),
 
     std::make_tuple(
       FuzzTrace{AddClauseCmd{{1, -2}}},
-      std::vector<uint32_t>{magicCookie,
-        0x01000002, 2, 5
+      BinaryTrace{magicCookie,
+        uint8_t{0}, uint32_t{2}, uint32_t{5}, uint32_t{0}
       }
     ),
 
     std::make_tuple(
       FuzzTrace{AssumeCmd{{1, -2, 10, -11}}},
-      std::vector<uint32_t>{magicCookie,
-        0x02000004, 2, 5, 20, 23
+      BinaryTrace{magicCookie,
+        uint8_t{1}, uint32_t{2}, uint32_t{5}, uint32_t{20}, uint32_t{23}, uint32_t{0}
       }
     ),
 
-    std::make_tuple(
-      FuzzTrace{AssumeCmd{{1, -2, 10, -11}}},
-      std::vector<uint32_t>{magicCookie,
-        0x02000004, 2, 5, 20, 23
-      }
-    ),
-
-    std::make_tuple(FuzzTrace{SolveCmd{}}, std::vector<uint32_t>{magicCookie, 0x03000000}),
-    std::make_tuple(FuzzTrace{SolveCmd{true}}, std::vector<uint32_t>{magicCookie, 0x0300000A}),
-    std::make_tuple(FuzzTrace{SolveCmd{false}}, std::vector<uint32_t>{magicCookie, 0x03000014}),
-    std::make_tuple(FuzzTrace{HavocCmd{15}}, std::vector<uint32_t>{magicCookie, 0x04000000, 15, 0}),
+    std::make_tuple(FuzzTrace{SolveCmd{}}, BinaryTrace{magicCookie, uint8_t{2}}),
+    std::make_tuple(FuzzTrace{SolveCmd{false}}, BinaryTrace{magicCookie, uint8_t{3}}),
+    std::make_tuple(FuzzTrace{SolveCmd{true}}, BinaryTrace{magicCookie, uint8_t{4}}),
+    std::make_tuple(FuzzTrace{HavocCmd{15, true}}, BinaryTrace{magicCookie, uint8_t{5}, uint64_t{15}}),
+    std::make_tuple(FuzzTrace{HavocCmd{15}}, BinaryTrace{magicCookie, uint8_t{6}, uint64_t{15}}),
 
     std::make_tuple(
       FuzzTrace{
@@ -267,19 +257,19 @@ INSTANTIATE_TEST_SUITE_P(, FuzzTraceTests_loadStoreTrace,
         AddClauseCmd{{-4}},
         SolveCmd{false}
       },
-      std::vector<uint32_t>{
+      BinaryTrace{
         magicCookie,
-        0x04000001, 16, 2,
-        0x01000002, 2, 5,
-        0x01000002, 5, 8,
-        0x02000001, 2,
-        0x0300000A,
-        0x0300000A,
-        0x04000000, 16, 2,
-        0x01000000,
-        0x01000001, 4,
-        0x01000001, 9,
-        0x03000014
+        uint8_t{5}, ((uint64_t{2} << 32) + uint64_t{16}),
+        uint8_t{0}, uint32_t{2}, uint32_t{5}, uint32_t{0},
+        uint8_t{0}, uint32_t{5}, uint32_t{8}, uint32_t{0},
+        uint8_t{1}, uint32_t{2}, uint32_t{0},
+        uint8_t{4},
+        uint8_t{4},
+        uint8_t{6}, ((uint64_t{2} << 32) + uint64_t{16}),
+        uint8_t{0}, uint32_t{0},
+        uint8_t{0}, uint32_t{4}, uint32_t{0},
+        uint8_t{0}, uint32_t{9}, uint32_t{0},
+        uint8_t{3}
       }
     )
   )

@@ -30,7 +30,11 @@
 
 #include <gsl/gsl_util>
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include <algorithm>
+#include <cstdio>
 #include <fstream>
 #include <iostream>
 #include <random>
@@ -106,45 +110,47 @@ auto createTempDir() -> PathWithDeleter
   return PathWithDeleter{dir};
 }
 
-auto slurpUInt32File(std::filesystem::path const& path) -> std::optional<std::vector<uint32_t>>
+void assertFileContains(std::filesystem::path const& path, BinaryTrace const& expected)
 {
   FILE* input = fopen(path.string().c_str(), "r+");
-  if (input == nullptr) {
-    return std::nullopt;
-  }
-
+  ASSERT_THAT(input, ::testing::NotNull());
   auto fileCloser = gsl::finally([input]() { fclose(input); });
 
-  std::vector<uint32_t> result;
-  size_t nRead = 0;
+  size_t totalSizeRead = 0;
+  for (auto const& intVariant : expected) {
+    std::visit(
+        [input, &totalSizeRead](auto value) {
+          decltype(value) leValue = toSmallEndian(value);
 
-  do {
-    std::array<uint32_t, 256> buffer;
-    nRead = fread(buffer.data(), 4, 256, input);
-    std::copy(buffer.begin(), buffer.begin() + nRead, std::back_inserter(result));
-  } while (nRead != 0);
+          decltype(value) readValue = 0;
+          size_t const itemsRead = fread(&readValue, sizeof(readValue), 1, input);
+          totalSizeRead += sizeof(readValue);
 
-  std::transform(result.begin(), result.end(), result.begin(), fromSmallEndian);
-  return result;
+          ASSERT_THAT(itemsRead, ::testing::Eq(1)) << "Premature end of trace file";
+          EXPECT_THAT(readValue, ::testing::Eq(leValue)) << "At byte " << totalSizeRead;
+        },
+        intVariant);
+  }
 }
 
-void writeUInt32VecToFile(std::vector<uint32_t> const& data, std::filesystem::path const& path)
+void writeBinaryTrace(std::filesystem::path const& path, BinaryTrace const& trace)
 {
-  std::vector<uint32_t> smallEndianData = data;
-  std::transform(
-      smallEndianData.begin(), smallEndianData.end(), smallEndianData.begin(), toSmallEndian);
-
   FILE* output = fopen(path.string().c_str(), "w");
   if (output == nullptr) {
     throw TestIOException("Failed to open file " + path.string());
   }
   auto fileCloser = gsl::finally([output]() { fclose(output); });
 
-  std::size_t written =
-      fwrite(smallEndianData.data(), smallEndianData.size() * sizeof(uint32_t), 1, output);
-
-  if (written != 1) {
-    throw TestIOException("Failed to write " + path.string());
+  for (auto const& intVariant : trace) {
+    std::visit(
+        [output](auto value) {
+          decltype(value) leValue = toSmallEndian(value);
+          size_t const itemsWritten = fwrite(&leValue, sizeof(leValue), 1, output);
+          if (itemsWritten != 1) {
+            throw TestIOException("Failed to write test data");
+          }
+        },
+        intVariant);
   }
 }
 }

@@ -37,13 +37,15 @@
 
 namespace incmonk {
 
-inline uint32_t toSmallEndian(uint32_t value)
+template <typename I>
+auto toSmallEndian(I value) -> I
 {
   // TODO: deal with big-endian systems
   return value;
 }
 
-inline uint32_t fromSmallEndian(uint32_t value)
+template <typename I>
+auto fromSmallEndian(I value) -> I
 {
   // TODO: deal with big-endian systems
   return value;

@@ -30,6 +30,7 @@
 
 #include <gsl/gsl_util>
 
+#include <cassert>
 #include <cstdio>
 #include <fstream>
 #include <string>
@@ -175,11 +176,26 @@ auto applyTrace(FuzzTrace::const_iterator first,
 IOException::IOException(std::string const& what) : std::runtime_error(what) {}
 
 namespace {
-constexpr uint32_t magicCookie = 0xF2950000; // 0xF2950000 + format version
+constexpr uint32_t magicCookie = 0xF2950001; // 0xF2950000 + format version
 
-void appendToTraceBuffer(uint32_t value, std::vector<uint32_t>& buffer)
+constexpr uint8_t addClauseCmdId = 0;
+constexpr uint8_t assumeCmdId = 1;
+constexpr uint8_t solveWithoutExpectedResultCmdId = 2;
+constexpr uint8_t solveWithFalseResultCmdId = 3;
+constexpr uint8_t solveWithTrueResultCmdId = 4;
+constexpr uint8_t havocInitCmdId = 5;
+constexpr uint8_t havocCmdId = 6;
+
+
+template <typename I>
+void appendToTraceFile(I value, FILE* stream)
 {
-  buffer.push_back(toSmallEndian(value));
+  static_assert(std::is_integral_v<I>);
+  I valueToWrite = toSmallEndian(value);
+  size_t const written = fwrite(&valueToWrite, sizeof(valueToWrite), 1, stream);
+  if (written != 1) {
+    throw IOException{"Write failure"};
+  }
 }
 
 uint32_t litAsBinary(CNFLit lit)
@@ -189,42 +205,43 @@ uint32_t litAsBinary(CNFLit lit)
   return absVal;
 }
 
-void appendLitsToTraceBuffer(std::vector<CNFLit> const& lits, std::vector<uint32_t>& buffer)
+void appendLitsToTraceFile(std::vector<CNFLit> const& lits, FILE* stream)
 {
   for (CNFLit lit : lits) {
-    appendToTraceBuffer(litAsBinary(lit), buffer);
+    appendToTraceFile<uint32_t>(litAsBinary(lit), stream);
+  }
+  appendToTraceFile<uint32_t>(0, stream);
+}
+
+void storeCmd(AddClauseCmd const& cmd, FILE* stream)
+{
+  appendToTraceFile<uint8_t>(addClauseCmdId, stream);
+  appendLitsToTraceFile(cmd.clauseToAdd, stream);
+}
+
+void storeCmd(AssumeCmd const& cmd, FILE* stream)
+{
+  appendToTraceFile<uint8_t>(assumeCmdId, stream);
+  appendLitsToTraceFile(cmd.assumptions, stream);
+}
+
+void storeCmd(SolveCmd const& cmd, FILE* stream)
+{
+  if (!cmd.expectedResult.has_value()) {
+    appendToTraceFile<uint8_t>(solveWithoutExpectedResultCmdId, stream);
+  }
+  else {
+    uint8_t const cmdIdWithValue =
+        *(cmd.expectedResult) ? solveWithTrueResultCmdId : solveWithFalseResultCmdId;
+    appendToTraceFile<uint8_t>(cmdIdWithValue, stream);
   }
 }
 
-void storeCmd(AddClauseCmd const& cmd, std::vector<uint32_t>& buffer)
+void storeCmd(HavocCmd const& cmd, FILE* stream)
 {
-  uint32_t header = 1 << 24 | cmd.clauseToAdd.size();
-  appendToTraceBuffer(header, buffer);
-  appendLitsToTraceBuffer(cmd.clauseToAdd, buffer);
-}
-
-void storeCmd(AssumeCmd const& cmd, std::vector<uint32_t>& buffer)
-{
-  uint32_t header = 2 << 24 | cmd.assumptions.size();
-  appendToTraceBuffer(header, buffer);
-  appendLitsToTraceBuffer(cmd.assumptions, buffer);
-}
-
-void storeCmd(SolveCmd const& cmd, std::vector<uint32_t>& buffer)
-{
-  uint32_t header = 3 << 24;
-  if (cmd.expectedResult.has_value()) {
-    header |= ((*cmd.expectedResult) ? 10 : 20);
-  }
-  appendToTraceBuffer(header, buffer);
-}
-
-void storeCmd(HavocCmd const& cmd, std::vector<uint32_t>& buffer)
-{
-  uint32_t header = 4 << 24 | (cmd.beforeInit ? 1 : 0);
-  appendToTraceBuffer(header, buffer);
-  appendToTraceBuffer(cmd.seed & 0xFFFFFFFF, buffer);
-  appendToTraceBuffer(cmd.seed >> 32, buffer);
+  uint8_t cmdId = cmd.beforeInit ? havocInitCmdId : havocCmdId;
+  appendToTraceFile<uint8_t>(cmdId, stream);
+  appendToTraceFile<uint64_t>(cmd.seed, stream);
 }
 }
 
@@ -232,44 +249,45 @@ void storeTrace(FuzzTrace::const_iterator first,
                 FuzzTrace::const_iterator last,
                 std::filesystem::path const& filename)
 {
-  std::vector<uint32_t> buffer;
-
-  appendToTraceBuffer(magicCookie, buffer);
-
-  for (FuzzTrace::const_iterator cmd = first; cmd != last; ++cmd) {
-    std::visit([&buffer](auto&& x) { storeCmd(x, buffer); }, *cmd);
-  }
-
   FILE* output = fopen(filename.string().c_str(), "w");
   if (output == nullptr) {
     throw IOException{"Could not open file " + filename.string()};
   }
-
   auto closeOutput = gsl::finally([output]() { fclose(output); });
-  size_t written = fwrite(buffer.data(), buffer.size() * sizeof(uint32_t), 1, output);
-  if (written != 1) {
+
+  try {
+    appendToTraceFile<uint32_t>(magicCookie, output);
+    for (FuzzTrace::const_iterator cmd = first; cmd != last; ++cmd) {
+      std::visit([&output](auto&& x) { storeCmd(x, output); }, *cmd);
+    }
+  }
+  catch (IOException const&) {
     throw IOException{"I/O error while writing to " + filename.string()};
   }
 }
 
 namespace {
-std::vector<CNFLit> readCNFLits(FILE* input, size_t size)
+std::vector<CNFLit> readCNFLits(FILE* input)
 {
   std::vector<uint32_t> buffer;
-  buffer.resize(size);
-  size_t numRead = fread(buffer.data(), sizeof(uint32_t), size, input);
-  if (numRead != size) {
-    throw IOException{"Unexpected end of file"};
+
+  bool clauseEndReached = false;
+  while (!clauseEndReached) {
+    uint32_t nextLit = 0;
+    if (fread(&nextLit, sizeof(uint32_t), 1, input) != 1) {
+      throw IOException{"Unexpected end of literal sequence"};
+    }
+
+    clauseEndReached = (nextLit == 0);
+    if (!clauseEndReached > 0) {
+      buffer.push_back(nextLit);
+    }
   }
 
-  std::transform(buffer.begin(), buffer.end(), buffer.begin(), fromSmallEndian);
+  std::transform(buffer.begin(), buffer.end(), buffer.begin(), fromSmallEndian<uint32_t>);
 
   std::vector<CNFLit> result;
   for (uint32_t i : buffer) {
-    if (i == 0 || (i & 0xFF000000) != 0) {
-      throw IOException{"Bad literal"};
-    }
-
     int sign = ((i & 1) == 1 ? -1 : 1);
     result.push_back(static_cast<int32_t>(i / 2) * sign);
   }
@@ -279,55 +297,62 @@ std::vector<CNFLit> readCNFLits(FILE* input, size_t size)
 
 auto readHavocSeed(FILE* input) -> uint64_t
 {
-  std::array<uint32_t, 2> buffer;
-  size_t numRead = fread(buffer.data(), sizeof(uint32_t), 2, input);
-  if (numRead != 2) {
+  uint64_t result = 0;
+  size_t numRead = fread(&result, sizeof(uint64_t), 1, input);
+  if (numRead != 1) {
     throw IOException{"Unexpected end of file"};
   }
-  return static_cast<uint64_t>(buffer[0]) | (static_cast<uint64_t>(buffer[1]) << 32);
+  return fromSmallEndian(result);
+}
+
+auto decodeSolveResult(uint8_t commandID) -> std::optional<bool>
+{
+  if (commandID == solveWithoutExpectedResultCmdId) {
+    return std::nullopt;
+  }
+  else if (commandID == solveWithFalseResultCmdId) {
+    return false;
+  }
+  else {
+    assert(commandID == solveWithTrueResultCmdId);
+    return true;
+  }
 }
 
 std::optional<FuzzCmd> readFuzzCmd(FILE* input)
 {
-  uint32_t cmdHeader;
-  size_t const numReadHeader = fread(&cmdHeader, sizeof(uint32_t), 1, input);
-  if (numReadHeader == 0) {
+  uint8_t command = 0;
+  size_t const numRead = fread(&command, 1, 1, input);
+  if (numRead == 0) {
     return std::nullopt;
   }
 
-  cmdHeader = fromSmallEndian(cmdHeader);
-
-  uint32_t const type = cmdHeader >> 24;
-
-  if (type == 1) {
+  if (command == addClauseCmdId) {
     AddClauseCmd result;
-    result.clauseToAdd = readCNFLits(input, cmdHeader & 0x00FFFFFF);
+    result.clauseToAdd = readCNFLits(input);
     return result;
   }
-  else if (type == 2) {
+  else if (command == assumeCmdId) {
     AssumeCmd result;
-    result.assumptions = readCNFLits(input, cmdHeader & 0x00FFFFFF);
+    result.assumptions = readCNFLits(input);
     return result;
   }
-  else if (type == 3) {
+  else if (command == solveWithoutExpectedResultCmdId || command == solveWithFalseResultCmdId ||
+           command == solveWithTrueResultCmdId) {
     SolveCmd result;
-    uint32_t expected = cmdHeader & 0xFF;
-    if (expected == 10 || expected == 20) {
-      result.expectedResult = (expected == 10);
-    }
-    else if (expected != 0) {
-      throw IOException{"Invalid fuzz command value"};
-    }
+    result.expectedResult = decodeSolveResult(command);
     return result;
   }
-  else if (type == 4) {
+  else if (command == havocInitCmdId || command == havocCmdId) {
+    // command == 6: pre-init havoc cmd
+    // command == 7: regular havoc cmd
     HavocCmd result;
     result.seed = readHavocSeed(input);
-    result.beforeInit = ((cmdHeader & 1) == 1 ? true : false);
+    result.beforeInit = (command == havocInitCmdId);
     return result;
   }
   else {
-    throw IOException{"Invalid fuzz command header"};
+    throw IOException{"Invalid fuzz command"};
   }
 }
 
