@@ -24,6 +24,13 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Default configurations and configuration file parsing
+ */
+
+
 #pragma once
 
 #include <libincmonk/generators/CommunityAttachmentGenerator.h>

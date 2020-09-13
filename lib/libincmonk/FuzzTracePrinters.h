@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Functions for printing FuzzTrace objects as C++ or ICNF
+ */
+
 #pragma once
 
 #include <libincmonk/FuzzTrace.h>

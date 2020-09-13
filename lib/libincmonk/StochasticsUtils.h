@@ -24,6 +24,13 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Stochastics-related utilities
+ */
+
+
 #pragma once
 
 #include <libincmonk/FastRand.h>

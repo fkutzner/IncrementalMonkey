@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief FuzzTrace generator interface
+ */
+
 #pragma once
 
 #include <libincmonk/FuzzTrace.h>

@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Utility functions for the TOML++ library
+ */
+
 #pragma once
 
 #include <libincmonk/StochasticsUtils.h>

@@ -24,6 +24,13 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Interface for test oracles, which are used for validating the results
+ *   produced by the solver under test
+ */
+
 #pragma once
 
 #include <libincmonk/FuzzTrace.h>

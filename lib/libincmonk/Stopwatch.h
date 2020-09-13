@@ -24,6 +24,14 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief A stopwatch, everybody has one
+ */
+
+#pragma once
+
 #include <chrono>
 #include <type_traits>
 

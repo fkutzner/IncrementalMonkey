@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Functions for creating child processes and obtaining feedback
+ */
+
 #pragma once
 
 #include <chrono>

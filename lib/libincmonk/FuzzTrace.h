@@ -27,7 +27,8 @@
 /**
  * \file
  * 
- * \brief IPASIR solver trace data structures and related apply/print/load/store functions
+ * \brief FuzzTrace data structure (& core operations) for representing sequences
+ *   of IPASIR API calls.
  */
 
 #pragma once

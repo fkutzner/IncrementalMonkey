@@ -24,6 +24,13 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Functions for executing a FuzzTrace on the solver under test and checking
+ *   its behavior using a test oracle.
+ */
+
 #pragma once
 
 #include <libincmonk/FuzzTrace.h>

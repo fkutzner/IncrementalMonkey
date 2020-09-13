@@ -26,6 +26,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Entry point for Incremental Monkey
+ */
+
 #include "Fuzz.h"
 #include "PrintCPP.h"
 #include "PrintICNF.h"

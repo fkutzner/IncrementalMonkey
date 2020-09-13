@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief IPASIR C++ interface (with optional `incmonk_*` extensions) & DSO loader
+ */
+
 #pragma once
 
 #include <libincmonk/CNF.h>
@@ -99,8 +105,6 @@ public:
   IPASIRSolver() = default;
   virtual ~IPASIRSolver() = default;
 
-  virtual void reinitializeWithHavoc(uint64_t seed) noexcept = 0;
-
   virtual void addClause(CNFClause const& clause) = 0;
   virtual void assume(std::vector<CNFLit> const& assumptions) = 0;
 
@@ -110,9 +114,10 @@ public:
   virtual auto getLastSolveResult() const noexcept -> Result = 0;
   virtual auto getValue(CNFLit lit) const noexcept -> TBool = 0;
   virtual auto isFailed(CNFLit lit) const noexcept -> bool = 0;
-  virtual void havoc(uint64_t seed) noexcept = 0;
 
   virtual void configure(uint64_t value) = 0;
+  virtual void reinitializeWithHavoc(uint64_t seed) noexcept = 0;
+  virtual void havoc(uint64_t seed) noexcept = 0;
 };
 
 auto createIPASIRSolver(IPASIRSolverDSO const& dso) -> std::unique_ptr<IPASIRSolver>;

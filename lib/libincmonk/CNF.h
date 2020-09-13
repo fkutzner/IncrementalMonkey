@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Basic data types for dealing with CNF problem instances
+ */
+
 #pragma once
 
 #include <cstdint>

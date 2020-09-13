@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Types for ternary logic
+ */
+
 #pragma once
 
 #include <libincmonk/CNF.h>

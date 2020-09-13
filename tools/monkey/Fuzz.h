@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Implementation of `monkey fuzz`
+ */
+
 #pragma once
 
 #include <chrono>

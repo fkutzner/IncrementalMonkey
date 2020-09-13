@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Implementation of `monkey replay`
+ */
+
 #pragma once
 
 #include <filesystem>

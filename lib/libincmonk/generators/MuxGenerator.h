@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Weighted FuzzTrace generator combination
+ */
+
 #pragma once
 
 #include <libincmonk/generators/FuzzTraceGenerator.h>

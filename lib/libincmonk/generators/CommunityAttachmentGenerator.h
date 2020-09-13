@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief FuzzTrace generator based on the Community Attachment Model
+ */
+
 #pragma once
 
 #include <libincmonk/InterspersionSchedulers.h>

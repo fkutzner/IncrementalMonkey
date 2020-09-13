@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief FuzzTrace generator producing traces that can be simplified particularly well
+ */
+
 #pragma once
 
 #include <libincmonk/InterspersionSchedulers.h>

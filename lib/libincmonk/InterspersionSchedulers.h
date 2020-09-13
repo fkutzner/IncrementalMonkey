@@ -24,6 +24,13 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief Functions for adding solve, assume and havoc commands to FuzzTrace objects,
+ *   used by FuzzTrace generators
+ */
+
 #pragma once
 
 #include <libincmonk/FuzzTrace.h>

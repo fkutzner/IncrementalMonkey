@@ -24,6 +24,12 @@
 
 */
 
+/**
+ * \file
+ * 
+ * \brief CryptoMiniSat-based test oracle implementation
+ */
+
 #include <libincmonk/Oracle.h>
 
 #include <cryptominisat5/cryptominisat.h>
