@@ -1,6 +1,8 @@
 nm_add_tool(monkey
   Fuzz.cpp
   Fuzz.h
+  GenTrace.h
+  GenTrace.cpp
   IncrementalMonkey.cpp
   PrintCPP.cpp
   PrintCPP.h

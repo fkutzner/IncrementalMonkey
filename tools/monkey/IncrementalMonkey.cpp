@@ -33,6 +33,7 @@
  */
 
 #include "Fuzz.h"
+#include "GenTrace.h"
 #include "PrintCPP.h"
 #include "PrintICNF.h"
 #include "Replay.h"
@@ -50,6 +51,7 @@ auto main(int argc, char** argv) -> int
   incmonk::ReplayParams replayParams;
   incmonk::PrintCPPParams printParams;
   incmonk::PrintICNFParams printICNFParams;
+  incmonk::GenTraceParams genTraceParams;
 
   uint64_t fuzzMaxRounds = 0;
   uint64_t fuzzTimeoutMillis = 0;
@@ -111,7 +113,22 @@ auto main(int argc, char** argv) -> int
       ->required();
 
   CLI::App* printDefaultCfgApp =
-      app.add_subcommand("print-default-cfg", "Prints the default configuration");
+      app.add_subcommand("print-default-cfg", "Print the default configuration");
+
+
+  CLI::App* genTraceApp = app.add_subcommand("gen-trace", "Generate a random trace");
+  CLI::Option* genTraceCfgFileOpt = genTraceApp->add_option(
+      "--config",
+      fuzzConfigFile,
+      "Problem generator configuration file. See print-default-cfg command");
+  genTraceApp->add_option("OUTPUT", genTraceParams.outputFile, "Trace filename")->required();
+  genTraceApp->add_option(
+      "--seed", genTraceParams.seed, "Random number generator seed for problem generators");
+  genTraceApp->add_flag("--no-havoc", genTraceParams.disableHavoc, "Disable havoc commands");
+
+  genTraceApp->add_option("--generator", genTraceParams.generator, "Select generator. Default: cam")
+      ->transform(CLI::IsMember({"cam", "simp-para"}))
+      ->default_val("cam");
 
 
   app.require_subcommand(1);
@@ -141,6 +158,12 @@ auto main(int argc, char** argv) -> int
   else if (printDefaultCfgApp->parsed()) {
     std::cout << incmonk::getDefaultConfigTOML() << "\n";
     return EXIT_SUCCESS;
+  }
+  else if (genTraceApp->parsed()) {
+    if (!genTraceCfgFileOpt->empty()) {
+      genTraceParams.configFile = fuzzConfigFile;
+    }
+    return incmonk::genTraceMain(genTraceParams);
   }
 
   // Not reachable
