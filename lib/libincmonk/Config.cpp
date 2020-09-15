@@ -45,7 +45,7 @@ constexpr char const* defaultConfig = R"z(
 # Distributions are specified as piecewise linear distributions, given as array of pairs [value, weight]
 # See https://en.cppreference.com/w/cpp/numeric/random/piecewise_linear_distribution
 
-num_clauses_distribution = [[200.0, 0.0], [400.0, 1.0], [600.0, 0.0], [800.0, 0.0], [1000.0, 1.0], [1200.0, 0.0]]
+num_clauses_distribution = [[200.0, 0.0], [400.0, 1.0], [600.0, 0.0], [800.0, 0.0], [1000.0, 0.1], [1200.0, 0.0]]
 clause_size_distribution = [[2.0, 0.0], [4.0, 1.0], [10.0, 0.0]]
 
 # Determines the number of variables in relation to the number of clauses
