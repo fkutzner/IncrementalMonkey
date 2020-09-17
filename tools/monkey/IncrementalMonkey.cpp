@@ -37,6 +37,7 @@
 #include "PrintCPP.h"
 #include "PrintICNF.h"
 #include "Replay.h"
+#include "Utils.h"
 
 #include <libincmonk/Config.h>
 
@@ -309,6 +310,8 @@ private:
 
 auto main(int argc, char** argv) -> int
 {
+  incmonk::forceIPASIRLinkIfNeeded();
+
   std::string const version = INCMONK_VERSION;
   CLI::App app{"A random-testing tool for IPASIR implementations\nVersion " + version, "monkey"};
 

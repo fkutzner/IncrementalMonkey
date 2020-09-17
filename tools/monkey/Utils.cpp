@@ -31,6 +31,12 @@
 #include <algorithm>
 #include <filesystem>
 
+#if defined(IM_LINKTIME_IPASIR)
+extern "C" {
+extern void ipasir_signature();
+}
+#endif
+
 namespace incmonk {
 namespace {
 void wrapVarsAt16M(std::vector<CNFLit>& lits)
@@ -77,5 +83,12 @@ auto loadTraceFromFileOrStdin(std::filesystem::path const& path, bool parsePermi
   }
 
   return result;
+}
+
+void forceIPASIRLinkIfNeeded()
+{
+#if defined(IM_LINKTIME_IPASIR)
+  ipasir_signature();
+#endif
 }
 }

@@ -35,4 +35,13 @@ namespace incmonk {
  * Wrapper for loadTrace() that reads from stdin if the path is equal to "-"
  */
 auto loadTraceFromFileOrStdin(std::filesystem::path const& path, bool parsePermissive) -> FuzzTrace;
+
+/**
+ * Uses an IPASIR symbol if an IPASIR library is linked at to the monkey binary
+ * 
+ * IPASIR functions are looked up via dlsym() even when the library is actually linked to
+ * the monkey binary. To keep the linker from optimizing away the IPASIR dependency,
+ * this function calls the `ipasir_signature` function if needed.
+ */
+void forceIPASIRLinkIfNeeded();
 }
