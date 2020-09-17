@@ -54,6 +54,10 @@ auto uncheckedGetFn(void* dso, std::string name) -> FnTy
 
 void* checkedOpenDSO(std::filesystem::path const& path)
 {
+  if (path == std::filesystem::path{"preloaded"}) {
+    return RTLD_DEFAULT;
+  }
+
   void* result = dlopen(path.string().c_str(), RTLD_NOW | RTLD_LOCAL);
   if (result == nullptr) {
     throw DSOLoadError{"Could not open " + path.string()};
@@ -174,7 +178,12 @@ private:
 }
 
 IPASIRSolverDSO::IPASIRSolverDSO(std::filesystem::path const& path)
-  : m_dsoContext{checkedOpenDSO(path), [](void* dso) { dlclose(dso); }}
+  : m_dsoContext{checkedOpenDSO(path),
+                 [](void* dso) {
+                   if (dso != RTLD_DEFAULT) {
+                     dlclose(dso);
+                   }
+                 }}
   , initFn{checkedGetFn<IPASIRInitFn>(m_dsoContext.get(), "ipasir_init")}
   , releaseFn{checkedGetFn<IPASIRReleaseFn>(m_dsoContext.get(), "ipasir_release")}
   , addFn{checkedGetFn<IPASIRAddFn>(m_dsoContext.get(), "ipasir_add")}

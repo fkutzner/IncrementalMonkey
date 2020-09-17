@@ -86,8 +86,10 @@ public:
                              "Problem generator configuration file. See print-default-cfg command");
 
     m_subApp
-        ->add_option(
-            "LIB", m_fuzzerParams.fuzzedLibrary, "Shared library file of the IPASIR solver")
+        ->add_option("LIB",
+                     m_fuzzerParams.fuzzedLibrary,
+                     "Shared library file of the IPASIR solver. If \"preloaded\" is passed, "
+                     "symbols are looked up within the monkey process and no extra DSO is loaded")
         ->required();
   }
 
@@ -132,8 +134,10 @@ public:
     m_subApp = app.add_subcommand("replay", "Apply failure traces to IPASIR solvers");
     m_subApp->add_flag("--parse-permissive", m_replayParams.parsePermissive, "TODO: description");
     m_subApp
-        ->add_option(
-            "LIB", m_replayParams.solverLibrary, "Shared library file of the IPASIR solver")
+        ->add_option("LIB",
+                     m_replayParams.solverLibrary,
+                     "Shared library file of the IPASIR solver. If \"preloaded\" is passed, "
+                     "symbols are looked up within the monkey process and no extra DSO is loaded")
         ->required();
     m_subApp
         ->add_option("TRACE",

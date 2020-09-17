@@ -29,6 +29,7 @@
 #include <libincmonk/Config.h>
 #include <libincmonk/FuzzTrace.h>
 
+#include <cassert>
 #include <fstream>
 #include <iostream>
 #include <memory>
