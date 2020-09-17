@@ -28,6 +28,7 @@ cmake_policy(VERSION 3.12)
 project(IncrementalMonkey VERSION 0.1.0)
 
 option(IM_ENABLE_COVERAGE OFF "Enable code coverage instrumentation")
+option(IM_IPASIR_LIB "" "(Optional) IPASIR shared library, for early linking")
 
 ### NiceMake setup
 set(NM_CONF_GTEST_TAG "release-1.10.0")

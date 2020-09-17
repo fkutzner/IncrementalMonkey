@@ -11,6 +11,7 @@ This changelog's format is based on [keep a changelog 1.0.0](https://keepachange
 - Added the `gen-trace` command for generating random traces
 - Added `--parse-permissive` parsing mode for traces
 - `monkey` now performs IPASIR lookups within the current process' own symbols if the specified DSO name is `preloaded`
+- Added support for dynamically linking a fixed IPASIR solver to `monkey` via the `IM_IPASIR_LIB` build option
 
 ### Changed
 

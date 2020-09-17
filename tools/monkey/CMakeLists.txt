@@ -16,3 +16,9 @@ nm_add_tool(monkey
 
 target_compile_definitions(monkey PRIVATE "INCMONK_VERSION=\"${CMAKE_PROJECT_VERSION}\"")
 target_link_libraries(monkey PRIVATE deps_cli11 libincmonk)
+
+
+if (IM_IPASIR_LIB)
+  message(STATUS "Linking to IPASIR library: ${IM_IPASIR_LIB}. When invoking monkey, pass \"preloaded\" as the IPASIR DSO name to use this library.")
+  target_link_libraries(monkey PRIVATE ${IM_IPASIR_LIB})
+endif()
