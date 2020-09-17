@@ -34,5 +34,5 @@ namespace incmonk {
 /**
  * Wrapper for loadTrace() that reads from stdin if the path is equal to "-"
  */
-auto loadTraceFromFileOrStdin(std::filesystem::path const& path) -> FuzzTrace;
+auto loadTraceFromFileOrStdin(std::filesystem::path const& path, bool parsePermissive) -> FuzzTrace;
 }

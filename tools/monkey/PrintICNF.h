@@ -37,6 +37,7 @@
 namespace incmonk {
 struct PrintICNFParams {
   std::filesystem::path traceFile;
+  bool parsePermissive = false;
 };
 
 auto printICNFMain(PrintICNFParams const& params) -> int;

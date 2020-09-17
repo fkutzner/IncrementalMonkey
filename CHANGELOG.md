@@ -9,6 +9,7 @@ This changelog's format is based on [keep a changelog 1.0.0](https://keepachange
 - Added Simplifier's Paradise, a random incremental SAT instance generator for particularly simplifiable problems
 - Trace-reading commands now read the trace from the standard input when `-` is specified as the trace filename.
 - Added the `gen-trace` command for generating random traces
+- Added `--parse-permissive` parsing mode for traces
 
 ### Changed
 

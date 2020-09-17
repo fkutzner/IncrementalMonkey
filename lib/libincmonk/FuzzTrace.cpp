@@ -185,6 +185,7 @@ constexpr uint8_t solveWithFalseResultCmdId = 3;
 constexpr uint8_t solveWithTrueResultCmdId = 4;
 constexpr uint8_t havocInitCmdId = 5;
 constexpr uint8_t havocCmdId = 6;
+constexpr uint8_t maxCmdId = 6;
 
 
 template <typename I>
@@ -319,12 +320,16 @@ auto decodeSolveResult(uint8_t commandID) -> std::optional<bool>
   }
 }
 
-std::optional<FuzzCmd> readFuzzCmd(FILE* input)
+std::optional<FuzzCmd> readFuzzCmd(FILE* input, LoaderStrictness strictness)
 {
   uint8_t command = 0;
   size_t const numRead = fread(&command, 1, 1, input);
   if (numRead == 0) {
     return std::nullopt;
+  }
+
+  if (strictness == LoaderStrictness::PERMISSIVE) {
+    command = command % (maxCmdId + 1);
   }
 
   if (command == addClauseCmdId) {
@@ -368,7 +373,7 @@ bool readMagicCookie(FILE* input)
 }
 }
 
-auto loadTrace(std::filesystem::path const& filename) -> FuzzTrace
+auto loadTrace(std::filesystem::path const& filename, LoaderStrictness strictness) -> FuzzTrace
 {
   FuzzTrace result;
 
@@ -378,21 +383,28 @@ auto loadTrace(std::filesystem::path const& filename) -> FuzzTrace
   }
   auto closeInput = gsl::finally([input]() { fclose(input); });
 
-  return loadTrace(*input);
+  return loadTrace(*input, strictness);
 }
 
-auto loadTrace(FILE& stream) -> FuzzTrace
+auto loadTrace(FILE& stream, LoaderStrictness strictness) -> FuzzTrace
 {
   FuzzTrace result;
 
-  if (!readMagicCookie(&stream)) {
+  if (!readMagicCookie(&stream) && strictness == LoaderStrictness::STRICT) {
     throw IOException{"Bad file format: magic cookie not found"};
   }
 
-  std::optional<FuzzCmd> currentCmd = readFuzzCmd(&stream);
-  while (currentCmd.has_value()) {
-    result.push_back(*currentCmd);
-    currentCmd = readFuzzCmd(&stream);
+  try {
+    std::optional<FuzzCmd> currentCmd = readFuzzCmd(&stream, strictness);
+    while (currentCmd.has_value()) {
+      result.push_back(*currentCmd);
+      currentCmd = readFuzzCmd(&stream, strictness);
+    }
+  }
+  catch (IOException const&) {
+    if (strictness == LoaderStrictness::STRICT) {
+      throw;
+    }
   }
 
   return result;

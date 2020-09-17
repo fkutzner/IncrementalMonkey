@@ -37,7 +37,7 @@ namespace incmonk {
 auto printCPPMain(PrintCPPParams const& params) -> int
 {
   try {
-    FuzzTrace trace = loadTraceFromFileOrStdin(params.traceFile);
+    FuzzTrace trace = loadTraceFromFileOrStdin(params.traceFile, params.parsePermissive);
 
     if (!params.funcName.empty()) {
       std::cout << "#include <ipasir.h>\n#include <initializer_list>\n#include <cassert>\n\n";

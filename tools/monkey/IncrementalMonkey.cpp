@@ -130,6 +130,7 @@ public:
   MonkeyReplayCommand(CLI::App& app)
   {
     m_subApp = app.add_subcommand("replay", "Apply failure traces to IPASIR solvers");
+    m_subApp->add_flag("--parse-permissive", m_replayParams.parsePermissive, "TODO: description");
     m_subApp
         ->add_option(
             "LIB", m_replayParams.solverLibrary, "Shared library file of the IPASIR solver")
@@ -171,6 +172,7 @@ public:
     m_subApp->add_option("--function-name",
                          m_printCppParams.funcName,
                          "Function name (default: only a body is printed)");
+    m_subApp->add_flag("--parse-permissive", m_printCppParams.parsePermissive, "TODO: description");
     m_subApp
         ->add_option("TRACE",
                      m_printCppParams.traceFile,
@@ -202,6 +204,8 @@ public:
   MonkeyPrintIcnfCommand(CLI::App& app)
   {
     m_subApp = app.add_subcommand("print-icnf", "Print traces as ICNF instances");
+    m_subApp->add_flag(
+        "--parse-permissive", m_printIcnfParams.parsePermissive, "TODO: description");
     m_subApp
         ->add_option("TRACE",
                      m_printIcnfParams.traceFile,

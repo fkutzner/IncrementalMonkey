@@ -38,6 +38,7 @@ namespace incmonk {
 struct ReplayParams {
   std::filesystem::path traceFile;
   std::filesystem::path solverLibrary;
+  bool parsePermissive = false;
 };
 
 auto replayMain(ReplayParams const& params) -> int;

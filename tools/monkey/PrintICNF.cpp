@@ -38,7 +38,7 @@ namespace incmonk {
 auto printICNFMain(PrintICNFParams const& params) -> int
 {
   try {
-    FuzzTrace trace = loadTraceFromFileOrStdin(params.traceFile);
+    FuzzTrace trace = loadTraceFromFileOrStdin(params.traceFile, params.parsePermissive);
     toICNF(trace.begin(), trace.end(), std::cout);
   }
   catch (IOException const& error) {

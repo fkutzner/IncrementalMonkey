@@ -41,6 +41,7 @@ struct PrintCPPParams {
   std::filesystem::path traceFile;
   std::string funcName;
   std::string solverVarName = "solver";
+  bool parsePermissive = false;
 };
 
 auto printCPPMain(PrintCPPParams const& params) -> int;

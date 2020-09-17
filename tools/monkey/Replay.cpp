@@ -41,7 +41,7 @@ auto replayMain(ReplayParams const& params) -> int
   try {
     IPASIRSolverDSO ipasirDSO{params.solverLibrary};
     auto ipasir = createIPASIRSolver(ipasirDSO);
-    FuzzTrace toReplay = loadTraceFromFileOrStdin(params.traceFile);
+    FuzzTrace toReplay = loadTraceFromFileOrStdin(params.traceFile, params.parsePermissive);
 
     auto failure = executeTrace(toReplay.begin(), toReplay.end(), *ipasir);
 

@@ -28,16 +28,54 @@
 
 #include <libincmonk/FuzzTrace.h>
 
+#include <algorithm>
 #include <filesystem>
 
 namespace incmonk {
-auto loadTraceFromFileOrStdin(std::filesystem::path const& path) -> FuzzTrace
+namespace {
+void wrapVarsAt16M(std::vector<CNFLit>& lits)
 {
+  constexpr CNFLit maxAbsLit = (1 << 24) - 1;
+  for (CNFLit& lit : lits) {
+    lit = std::clamp(lit, -maxAbsLit, maxAbsLit);
+  }
+}
+
+void wrapVarsAt16M(FuzzTrace& trace)
+{
+  for (FuzzCmd& traceElement : trace) {
+    std::visit(
+        [](auto&& cmd) {
+          using CmdT = std::decay_t<decltype(cmd)>;
+          if constexpr (std::is_same_v<AddClauseCmd, CmdT>) {
+            wrapVarsAt16M(cmd.clauseToAdd);
+          }
+          else if constexpr (std::is_same_v<AssumeCmd, CmdT>) {
+            wrapVarsAt16M(cmd.assumptions);
+          }
+        },
+        traceElement);
+  }
+}
+}
+
+auto loadTraceFromFileOrStdin(std::filesystem::path const& path, bool parsePermissive) -> FuzzTrace
+{
+  LoaderStrictness const strictness =
+      parsePermissive ? LoaderStrictness::PERMISSIVE : LoaderStrictness::PERMISSIVE;
+
+  FuzzTrace result;
   if (path == std::filesystem::path{"-"}) {
-    return loadTrace(*stdin);
+    result = loadTrace(*stdin, strictness);
   }
   else {
-    return loadTrace(path);
+    result = loadTrace(path, strictness);
   }
+
+  if (parsePermissive) {
+    wrapVarsAt16M(result);
+  }
+
+  return result;
 }
 }

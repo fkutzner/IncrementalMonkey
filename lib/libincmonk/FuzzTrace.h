@@ -139,17 +139,30 @@ void storeTrace(FuzzTrace::const_iterator first,
                 std::filesystem::path const& filename);
 
 
+enum class LoaderStrictness { STRICT, PERMISSIVE };
+
 /**
  * \brief Loads the trace from the given file
  * 
+ * \param filename    The file to load
+ * \param strictness  If STRICT, only valid traces are parsed. If PERMISSIVE, any byte sequence
+ *                    is interpreted as a trace, ignoring the versioning header and wrapping
+ *                    command numbers.
+ * 
  * \throw IOException   on file I/O failures and file format errors
  */
-auto loadTrace(std::filesystem::path const& filename) -> FuzzTrace;
+auto loadTrace(std::filesystem::path const& filename,
+               LoaderStrictness strictness = LoaderStrictness::STRICT) -> FuzzTrace;
 
 /**
  * \brief Loads the trace from the given C file stream
  * 
+ * \param stream      The stream from which to load the trace
+ * \param strictness  If STRICT, only valid traces are parsed. If PERMISSIVE, any byte sequence
+ *                    is interpreted as a trace, ignoring the versioning header and wrapping
+ *                    command numbers.
+ * 
  * \throw IOException   on file I/O failures and file format errors
  */
-auto loadTrace(FILE& stream) -> FuzzTrace;
+auto loadTrace(FILE& stream, LoaderStrictness strictness = LoaderStrictness::STRICT) -> FuzzTrace;
 }
