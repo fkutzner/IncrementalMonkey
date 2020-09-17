@@ -57,7 +57,7 @@ You can hook up Incremental Monkey to other fuzzers by using the `replay`
 command, e.g.
 
 ```
-# afl-fuzz -i corpus -o fuzz-out -- bin/monkey replay path/to/your/solver.so -
+# afl-fuzz -i corpus -o fuzz-out -- bin/monkey replay --parse-permissive --crash-on-failure path/to/your/solver.so -
 ```
 
 If you are using code instrumentation (eg. via `afl-clang`), make

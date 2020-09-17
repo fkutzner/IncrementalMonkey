@@ -134,6 +134,9 @@ public:
   {
     m_subApp = app.add_subcommand("replay", "Apply failure traces to IPASIR solvers");
     m_subApp->add_flag("--parse-permissive", m_replayParams.parsePermissive, "TODO: description");
+    m_subApp->add_flag("--crash-on-failure",
+                       m_replayParams.abortOnFailure,
+                       "Terminate abnormally (via abort()) on failure");
     m_subApp
         ->add_option("LIB",
                      m_replayParams.solverLibrary,

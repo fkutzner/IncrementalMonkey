@@ -39,6 +39,7 @@ struct ReplayParams {
   std::filesystem::path traceFile;
   std::filesystem::path solverLibrary;
   bool parsePermissive = false;
+  bool abortOnFailure = false;
 };
 
 auto replayMain(ReplayParams const& params) -> int;

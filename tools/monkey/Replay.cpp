@@ -34,8 +34,22 @@
 
 #include <cstdio>
 #include <iostream>
+#include <stdlib.h>
 
 namespace incmonk {
+
+namespace {
+auto failureExitCodeOrAbort(bool doAbort)
+{
+  if (!doAbort) {
+    return EXIT_FAILURE;
+  }
+  else {
+    abort();
+  }
+}
+}
+
 auto replayMain(ReplayParams const& params) -> int
 {
   try {
@@ -47,16 +61,16 @@ auto replayMain(ReplayParams const& params) -> int
 
     if (failure.has_value()) {
       std::cout << "Failed: test oracle did not accept result\n";
-      return EXIT_FAILURE;
+      return failureExitCodeOrAbort(params.abortOnFailure);
     }
   }
   catch (IOException const& error) {
     std::cerr << "Error: " << error.what() << "\n";
-    return EXIT_FAILURE;
+    return failureExitCodeOrAbort(params.abortOnFailure);
   }
   catch (DSOLoadError const& error) {
     std::cerr << "Error: " << error.what() << "\n";
-    return EXIT_FAILURE;
+    return failureExitCodeOrAbort(params.abortOnFailure);
   }
 
   std::cout << "Passed\n";
