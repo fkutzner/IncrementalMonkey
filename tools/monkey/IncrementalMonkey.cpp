@@ -44,9 +44,18 @@
 #include <CLI/CLI.hpp>
 
 #include <optional>
+#include <random>
 #include <string>
 
 namespace {
+
+auto rootSeed() -> uint64_t
+{
+  std::random_device rng;
+  std::uniform_int_distribution<uint64_t> u64Dist;
+  return u64Dist(rng);
+}
+
 
 class MonkeyCommand {
 public:
@@ -69,6 +78,8 @@ class MonkeyFuzzCommand : public MonkeyCommand {
 public:
   MonkeyFuzzCommand(CLI::App& app)
   {
+    m_fuzzerParams.seed = rootSeed();
+
     m_subApp = app.add_subcommand("fuzz", "Random-test IPASIR libraries");
     m_subApp->add_option(
         "--id",
@@ -270,6 +281,8 @@ class MonkeyGenTraceCommand : public MonkeyCommand {
 public:
   MonkeyGenTraceCommand(CLI::App& app)
   {
+    m_genTraceParams.seed = rootSeed();
+
     m_subApp = app.add_subcommand("gen-trace", "Generate a random trace");
     m_genTraceCfgFileOpt =
         m_subApp->add_option("--config",
@@ -308,7 +321,6 @@ private:
   incmonk::GenTraceParams m_genTraceParams;
   std::filesystem::path m_fuzzConfigFile;
 };
-
 }
 
 auto main(int argc, char** argv) -> int

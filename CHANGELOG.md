@@ -4,6 +4,9 @@ This changelog's format is based on [keep a changelog 1.0.0](https://keepachange
 
 ## [Unreleased]
 
+### Fixed
+- When no initial random seed is specified explicitly, the seed was set to 10. It is chosen randomly now.
+
 ## [0.2.0] - 2020-09-17
 
 ### Added
