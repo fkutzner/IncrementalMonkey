@@ -4,6 +4,8 @@ This changelog's format is based on [keep a changelog 1.0.0](https://keepachange
 
 ## [Unreleased]
 
+## [0.2.0] - 2020-09-17
+
 ### Added
 - Added the `print-icnf` command, printing traces as ICNF problem instances
 - Added Simplifier's Paradise, a random incremental SAT instance generator for particularly simplifiable problems
