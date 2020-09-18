@@ -26,7 +26,24 @@
 
 #include <libincmonk/verifier/Clause.h>
 
+#include <stdlib.h>
+
 namespace incmonk::verifier {
+
+auto operator<<(std::ostream& stream, Lit lit) -> std::ostream&
+{
+  if (!lit.isPositive()) {
+    stream << "-";
+  }
+  stream << lit.getVar();
+  return stream;
+}
+
+auto operator<<(std::ostream& stream, Var var) -> std::ostream&
+{
+  stream << var.getRawValue();
+  return stream;
+}
 
 auto operator<<(std::ostream& stream, Clause const& clause) -> std::ostream&
 {
@@ -36,7 +53,7 @@ auto operator<<(std::ostream& stream, Clause const& clause) -> std::ostream&
     stream << clause[0];
   }
 
-  for (CNFLit lit : clause.getLiterals().subspan(1)) {
+  for (Lit lit : clause.getLiterals().subspan(1)) {
     stream << ", " << lit;
   }
   stream << "}; addIdx=" << clause.getAddIdx() << ", delIdx=" << clause.getDelIdx()
@@ -57,7 +74,7 @@ std::size_t sizeOfClauseInMem(Clause::size_type size) noexcept
     return sizeof(Clause);
   }
   else {
-    return sizeof(Clause) + sizeof(CNFLit) * (size - 1);
+    return sizeof(Clause) + sizeof(Lit) * (size - 1);
   }
 }
 
@@ -78,7 +95,7 @@ void ClauseAllocator::resize(std::size_t newSize)
   m_memory = reinterpret_cast<char*>(realloc(m_memory, m_currentSize));
 }
 
-auto ClauseAllocator::allocate(gsl::span<CNFLit const> lits,
+auto ClauseAllocator::allocate(gsl::span<Lit const> lits,
                                ClauseVerificationState initialState,
                                ProofSequenceIdx addIdx) -> Ref
 {

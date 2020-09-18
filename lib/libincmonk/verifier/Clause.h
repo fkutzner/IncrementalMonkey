@@ -26,14 +26,50 @@
 
 #pragma once
 
-#include <libincmonk/CNF.h>
-
+#include <cstdint>
 #include <gsl/span>
 #include <limits>
 #include <optional>
 #include <ostream>
 
 namespace incmonk::verifier {
+
+class Var {
+public:
+  constexpr explicit Var(uint32_t id);
+  constexpr Var();
+
+  constexpr auto getRawValue() const -> uint32_t;
+
+  constexpr auto operator==(Var rhs) const -> bool;
+  constexpr auto operator!=(Var rhs) const -> bool;
+
+private:
+  uint32_t m_rawValue;
+};
+
+
+class Lit {
+public:
+  constexpr explicit Lit(Var v, bool positive);
+  constexpr Lit();
+
+  constexpr auto getRawValue() const -> uint32_t;
+  constexpr auto getVar() const -> Var;
+  constexpr auto isPositive() const -> bool;
+  constexpr auto operator-() const -> Lit;
+
+  constexpr auto operator==(Lit rhs) const -> bool;
+  constexpr auto operator!=(Lit rhs) const -> bool;
+
+private:
+  uint32_t m_rawValue;
+};
+
+auto operator""_Lit(unsigned long long cnfValue) -> Lit;
+auto operator<<(std::ostream& stream, Lit lit) -> std::ostream&;
+auto operator<<(std::ostream& stream, Var var) -> std::ostream&;
+
 
 enum class ClauseVerificationState : uint8_t {
   /// The clause is part of the problem instance, no verification required
@@ -55,14 +91,14 @@ using ProofSequenceIdx = uint32_t;
 class Clause final {
 public:
   using size_type = uint32_t;
-  using iterator = CNFLit*;             // TODO: write proper iterator
-  using const_iterator = CNFLit const*; // TODO: write proper const_iterator
+  using iterator = Lit*;             // TODO: write proper iterator
+  using const_iterator = Lit const*; // TODO: write proper const_iterator
 
-  auto operator[](size_type idx) noexcept -> CNFLit&;
-  auto operator[](size_type idx) const noexcept -> CNFLit const&;
+  auto operator[](size_type idx) noexcept -> Lit&;
+  auto operator[](size_type idx) const noexcept -> Lit const&;
 
-  auto getLiterals() noexcept -> gsl::span<CNFLit>;
-  auto getLiterals() const noexcept -> gsl::span<CNFLit const>;
+  auto getLiterals() noexcept -> gsl::span<Lit>;
+  auto getLiterals() const noexcept -> gsl::span<Lit const>;
 
   auto size() const noexcept -> size_type;
   auto empty() const noexcept -> bool;
@@ -82,20 +118,20 @@ private:
   uint32_t m_flags;
   ProofSequenceIdx m_pointOfAdd;
   ProofSequenceIdx m_pointOfDel;
-  CNFLit m_firstLit;
+  Lit m_firstLit;
 };
 
 auto operator<<(std::ostream& stream, Clause const& clause) -> std::ostream&;
 
 class BinaryClause final {
 public:
-  BinaryClause(CNFLit other, ClauseVerificationState initialState, ProofSequenceIdx addIdx);
+  BinaryClause(Lit other, ClauseVerificationState initialState, ProofSequenceIdx addIdx);
 
   void setState(ClauseVerificationState state) noexcept;
   auto getState() const noexcept -> ClauseVerificationState;
 
-  auto getOtherLit() noexcept -> CNFLit&;
-  auto getOtherLit() const noexcept -> CNFLit const&;
+  auto getOtherLit() noexcept -> Lit&;
+  auto getOtherLit() const noexcept -> Lit const&;
 
   auto getAddIdx() const noexcept -> ProofSequenceIdx;
   auto getDelIdx() const noexcept -> ProofSequenceIdx;
@@ -105,7 +141,7 @@ private:
   uint32_t m_flags = 0;
   ProofSequenceIdx m_pointOfAdd;
   ProofSequenceIdx m_pointOfDel;
-  CNFLit m_otherLit;
+  Lit m_otherLit;
 };
 
 auto operator<<(std::ostream& stream, BinaryClause const& clause) -> std::ostream&;
@@ -122,7 +158,7 @@ public:
     friend class ClauseAllocator;
   };
 
-  auto allocate(gsl::span<CNFLit const> lits,
+  auto allocate(gsl::span<Lit const> lits,
                 ClauseVerificationState initialState,
                 ProofSequenceIdx addIdx) -> Ref;
   auto resolve(Ref cref) noexcept -> Clause&;
@@ -140,24 +176,86 @@ using CRef = ClauseAllocator::Ref;
 
 // Implementation
 
-inline auto Clause::operator[](size_type idx) noexcept -> CNFLit&
+constexpr Var::Var(uint32_t id) : m_rawValue(id) {}
+
+constexpr Var::Var() : m_rawValue{0} {}
+
+constexpr auto Var::getRawValue() const -> uint32_t
+{
+  return m_rawValue;
+}
+
+constexpr auto Var::operator==(Var rhs) const -> bool
+{
+  return m_rawValue == rhs.m_rawValue;
+}
+
+constexpr auto Var::operator!=(Var rhs) const -> bool
+{
+  return m_rawValue != rhs.m_rawValue;
+}
+
+constexpr Lit::Lit(Var v, bool positive) : m_rawValue{(v.getRawValue() << 1) + (positive ? 1 : 0)}
+{
+}
+
+constexpr Lit::Lit() : m_rawValue{0} {}
+
+constexpr auto Lit::getRawValue() const -> uint32_t
+{
+  return m_rawValue;
+}
+
+constexpr auto Lit::getVar() const -> Var
+{
+  return Var{m_rawValue >> 1};
+}
+
+constexpr auto Lit::isPositive() const -> bool
+{
+  return (m_rawValue & 1) == 1;
+}
+
+constexpr auto Lit::operator-() const -> Lit
+{
+  return Lit{getVar(), !isPositive()};
+}
+
+constexpr auto Lit::operator==(Lit rhs) const -> bool
+{
+  return m_rawValue == rhs.m_rawValue;
+}
+
+constexpr auto Lit::operator!=(Lit rhs) const -> bool
+{
+  return m_rawValue != rhs.m_rawValue;
+}
+
+inline auto operator""_Lit(unsigned long long cnfValue) -> Lit
+{
+  Var var{static_cast<uint32_t>(cnfValue < 0 ? -cnfValue : cnfValue)};
+  return Lit{var, cnfValue > 0};
+}
+
+
+inline auto Clause::operator[](size_type idx) noexcept -> Lit&
 {
   return *((&m_firstLit) + idx);
 }
 
-inline auto Clause::operator[](size_type idx) const noexcept -> CNFLit const&
+inline auto Clause::operator[](size_type idx) const noexcept -> Lit const&
 {
   return *((&m_firstLit) + idx);
 }
 
-inline auto Clause::getLiterals() noexcept -> gsl::span<CNFLit>
+inline auto Clause::getLiterals() noexcept -> gsl::span<Lit>
 {
-  return gsl::span<CNFLit>{&m_firstLit, (&m_firstLit) + m_size};
+  return gsl::span<Lit>{&m_firstLit, (&m_firstLit) + m_size};
 }
 
-inline auto Clause::getLiterals() const noexcept -> gsl::span<CNFLit const>
+inline auto Clause::getLiterals() const noexcept -> gsl::span<Lit const>
 {
-  return gsl::span<CNFLit const>{&m_firstLit, (&m_firstLit) + m_size};
+  return gsl::span<Lit const>{&m_firstLit, (&m_firstLit) + m_size};
 }
 
 inline auto Clause::size() const noexcept -> size_type
@@ -202,12 +300,12 @@ inline Clause::Clause(size_type size,
   : m_size{size}
   , m_pointOfAdd{addIdx}
   , m_pointOfDel{std::numeric_limits<ProofSequenceIdx>::max()}
-  , m_firstLit{0}
+  , m_firstLit{Var{0}, false}
 {
   setState(initialState);
 }
 
-inline BinaryClause::BinaryClause(CNFLit other,
+inline BinaryClause::BinaryClause(Lit other,
                                   ClauseVerificationState initialState,
                                   ProofSequenceIdx addIdx)
   : m_pointOfAdd{addIdx}
@@ -228,12 +326,12 @@ inline auto BinaryClause::getState() const noexcept -> ClauseVerificationState
   return static_cast<ClauseVerificationState>(m_flags & 3);
 }
 
-inline auto BinaryClause::getOtherLit() noexcept -> CNFLit&
+inline auto BinaryClause::getOtherLit() noexcept -> Lit&
 {
   return m_otherLit;
 }
 
-inline auto BinaryClause::getOtherLit() const noexcept -> CNFLit const&
+inline auto BinaryClause::getOtherLit() const noexcept -> Lit const&
 {
   return m_otherLit;
 }

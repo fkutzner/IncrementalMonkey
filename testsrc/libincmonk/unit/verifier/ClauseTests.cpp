@@ -30,7 +30,6 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
-#include <numeric>
 #include <vector>
 
 using ::testing::Eq;
@@ -55,14 +54,14 @@ MATCHER_P3(ClauseEq, expectedLits, expectedState, expectedAddIdx, "")
   return std::equal(lits.begin(), lits.end(), expectedLits.begin());
 }
 
-class ClauseAllocator_allocationTests : public ::testing::TestWithParam<std::vector<CNFLit>> {
+class ClauseAllocator_allocationTests : public ::testing::TestWithParam<std::vector<Lit>> {
 public:
   virtual ~ClauseAllocator_allocationTests() = default;
 };
 
 namespace {
 void insertClausesAndCheck(ClauseAllocator& underTest,
-                           std::vector<std::vector<CNFLit>> const& inputClauses)
+                           std::vector<std::vector<Lit>> const& inputClauses)
 {
   std::vector<ClauseAllocator::Ref> allocatedRefs;
   for (auto const& clause : inputClauses) {
@@ -88,17 +87,26 @@ TEST_P(ClauseAllocator_allocationTests, clauseIsAllocatedCorrectlyInSingleAlloca
 TEST_P(ClauseAllocator_allocationTests, clauseIsAllocatedCorrectlyInMultipleAllocations)
 {
   ClauseAllocator underTest;
-  std::vector<std::vector<CNFLit>> inputClauses = {
-      {1, -4, -8, 9}, {}, {2, 7, 11}, GetParam(), {20, 40, 60, -80, 100, 120, -140}};
+  std::vector<std::vector<Lit>> inputClauses = {
+      {1_Lit, -4_Lit, -8_Lit, 9_Lit},
+      {},
+      {2_Lit, 7_Lit, 11_Lit},
+      GetParam(),
+      {20_Lit, 40_Lit, 60_Lit, -80_Lit, 100_Lit, 120_Lit, -140_Lit}};
   insertClausesAndCheck(underTest, inputClauses);
 }
 
 namespace {
-auto createIotaClause(Clause::size_type size) -> std::vector<CNFLit>
+auto createIotaClause(Clause::size_type size) -> std::vector<Lit>
 {
-  std::vector<CNFLit> result;
-  result.resize(size);
-  std::iota(result.begin(), result.end(), 4);
+  std::vector<Lit> result;
+  uint32_t var = 4;
+
+  std::generate_n(std::back_inserter(result), size, [&var] {
+    ++var;
+    return Lit{Var{var}, true};
+  });
+
   return result;
 }
 }
@@ -107,9 +115,14 @@ TEST_P(ClauseAllocator_allocationTests, clauseRefsRemainValidAfterDoublingResize
 {
   ClauseAllocator underTest;
 
-  static std::vector<CNFLit> const hugeClause = createIotaClause(1 << 20);
-  std::vector<std::vector<CNFLit>> inputClauses = {
-      {1, -4, -8, 9}, {}, {2, 7, 11}, GetParam(), hugeClause, {20, 40, 60, -80, 100, 120, -140}};
+  static std::vector<Lit> const hugeClause = createIotaClause(1 << 20);
+  std::vector<std::vector<Lit>> inputClauses = {
+      {1_Lit, -4_Lit, -8_Lit, 9_Lit},
+      {},
+      {2_Lit, 7_Lit, 11_Lit},
+      GetParam(),
+      hugeClause,
+      {20_Lit, 40_Lit, 60_Lit, -80_Lit, 100_Lit, 120_Lit, -140_Lit}};
 
   insertClausesAndCheck(underTest, inputClauses);
 }
@@ -119,9 +132,14 @@ TEST_P(ClauseAllocator_allocationTests, clauseRefsRemainValidAfterExtraLargeResi
   ClauseAllocator underTest;
 
   // The allocator can't provide enough memory by doubling the allocation alone
-  static std::vector<CNFLit> const hugeClause = createIotaClause(1 << 21);
-  std::vector<std::vector<CNFLit>> inputClauses = {
-      {1, -4, -8, 9}, {}, {2, 7, 11}, GetParam(), hugeClause, {20, 40, 60, -80, 100, 120, -140}};
+  static std::vector<Lit> const hugeClause = createIotaClause(1 << 21);
+  std::vector<std::vector<Lit>> inputClauses = {
+      {1_Lit, -4_Lit, -8_Lit, 9_Lit},
+      {},
+      {2_Lit, 7_Lit, 11_Lit},
+      GetParam(),
+      hugeClause,
+      {20_Lit, 40_Lit, 60_Lit, -80_Lit, 100_Lit, 120_Lit, -140_Lit}};
 
   insertClausesAndCheck(underTest, inputClauses);
 }
@@ -129,12 +147,12 @@ TEST_P(ClauseAllocator_allocationTests, clauseRefsRemainValidAfterExtraLargeResi
 // clang-format off
 INSTANTIATE_TEST_SUITE_P(, ClauseAllocator_allocationTests,
   ::testing::Values(
-    std::vector<CNFLit>{},
-    std::vector<CNFLit>{1},
-    std::vector<CNFLit>{-1},
-    std::vector<CNFLit>{-1, 2},
-    std::vector<CNFLit>{-1, 1024, 6},
-    std::vector<CNFLit>{-1, -1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+    std::vector<Lit>{},
+    std::vector<Lit>{1_Lit},
+    std::vector<Lit>{-1_Lit},
+    std::vector<Lit>{-1_Lit, 2_Lit},
+    std::vector<Lit>{-1_Lit, 1024_Lit, 6_Lit},
+    std::vector<Lit>{-1_Lit, -1_Lit, 2_Lit, 3_Lit, 4_Lit, 5_Lit, 6_Lit, 7_Lit, 8_Lit, 9_Lit, 10_Lit}
   )
 );
 // clang-format on
@@ -155,15 +173,15 @@ void checkClauseStateStore(Clause& clause)
 TEST(ClauseTests, whenClauseStateIsSet_itsValueChanges)
 {
   ClauseAllocator underTest;
-  CRef clauseRef =
-      underTest.allocate(std::vector<CNFLit>{1, 2, 3}, ClauseVerificationState::Irrendundant, 1);
+  CRef clauseRef = underTest.allocate(
+      std::vector<Lit>{1_Lit, 2_Lit, 3_Lit}, ClauseVerificationState::Irrendundant, 1);
   Clause& clause = underTest.resolve(clauseRef);
   checkClauseStateStore(clause);
 }
 
 TEST(BinaryClauseTests, whenClauseStateIsSet_itsValueChanges)
 {
-  BinaryClause clause{15, ClauseVerificationState::Irrendundant, 1};
+  BinaryClause clause{15_Lit, ClauseVerificationState::Irrendundant, 1};
   checkClauseStateStore(clause);
 }
 }
