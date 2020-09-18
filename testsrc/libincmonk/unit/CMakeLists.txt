@@ -9,6 +9,8 @@ nm_add_tool(incmonktests.libincmonk.unit
   FuzzTraceTests.cpp
   MuxGeneratorTests.cpp
   OracleTests.cpp
+
+  verifier/ClauseTests.cpp
 )
 
 target_link_libraries(incmonktests.libincmonk.unit PRIVATE

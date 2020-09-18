@@ -30,6 +30,9 @@ nm_add_library(libincmonk STATIC
   generators/MuxGenerator.h
   generators/SimplifiersParadiseGenerator.cpp
   generators/SimplifiersParadiseGenerator.h
+
+  verifier/Clause.cpp
+  verifier/Clause.h
 )
 
 target_include_directories(libincmonk PUBLIC ${PROJECT_SOURCE_DIR}/lib)
