@@ -30,6 +30,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <unordered_set>
 #include <vector>
 
 using ::testing::Eq;
@@ -183,5 +184,25 @@ TEST(BinaryClauseTests, whenClauseStateIsSet_itsValueChanges)
 {
   BinaryClause clause{15_Lit, ClauseVerificationState::Irrendundant, 1};
   checkClauseStateStore(clause);
+}
+
+TEST(LitTests, whenLitIsNegative_thenKeyMatchesItToAdjacentPositiveValue)
+{
+  Lit input = 5_Lit;
+  std::size_t pos = Key<Lit>::get(input);
+  std::size_t neg = Key<Lit>::get(-input);
+  EXPECT_THAT(neg, ::testing::Gt(0));
+  EXPECT_THAT(pos, Eq(neg + 1));
+}
+
+TEST(LitTests, distinctLitsHaveDistinctKeys)
+{
+  std::unordered_set<std::size_t> keys{Key<Lit>::get(1_Lit),
+                                       Key<Lit>::get(-1_Lit),
+                                       Key<Lit>::get(0_Lit),
+                                       Key<Lit>::get(-0_Lit),
+                                       Key<Lit>::get(4_Lit),
+                                       Key<Lit>::get(-4_Lit)};
+  EXPECT_THAT(keys, ::testing::SizeIs(6));
 }
 }

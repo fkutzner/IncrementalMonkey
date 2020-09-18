@@ -26,6 +26,8 @@
 
 #pragma once
 
+#include <libincmonk/verifier/Traits.h>
+
 #include <cstdint>
 #include <gsl/span>
 #include <limits>
@@ -48,6 +50,13 @@ private:
   uint32_t m_rawValue;
 };
 
+template <>
+struct Key<Var> {
+  constexpr static auto get(Var const& item) -> std::size_t;
+};
+
+auto operator<<(std::ostream& stream, Var var) -> std::ostream&;
+
 
 class Lit {
 public:
@@ -68,7 +77,11 @@ private:
 
 auto operator""_Lit(unsigned long long cnfValue) -> Lit;
 auto operator<<(std::ostream& stream, Lit lit) -> std::ostream&;
-auto operator<<(std::ostream& stream, Var var) -> std::ostream&;
+
+template <>
+struct Key<Lit> {
+  constexpr static auto get(Lit const& item) -> std::size_t;
+};
 
 
 enum class ClauseVerificationState : uint8_t {
@@ -195,6 +208,11 @@ constexpr auto Var::operator!=(Var rhs) const -> bool
   return m_rawValue != rhs.m_rawValue;
 }
 
+constexpr auto Key<Var>::get(Var const& item) -> std::size_t
+{
+  return item.getRawValue();
+}
+
 constexpr Lit::Lit(Var v, bool positive) : m_rawValue{(v.getRawValue() << 1) + (positive ? 1 : 0)}
 {
 }
@@ -235,6 +253,11 @@ inline auto operator""_Lit(unsigned long long cnfValue) -> Lit
 {
   Var var{static_cast<uint32_t>(cnfValue < 0 ? -cnfValue : cnfValue)};
   return Lit{var, cnfValue > 0};
+}
+
+constexpr auto Key<Lit>::get(Lit const& item) -> std::size_t
+{
+  return item.getRawValue();
 }
 
 

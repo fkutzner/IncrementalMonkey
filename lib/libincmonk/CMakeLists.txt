@@ -33,6 +33,7 @@ nm_add_library(libincmonk STATIC
 
   verifier/Clause.cpp
   verifier/Clause.h
+  verifier/Traits.h
 )
 
 target_include_directories(libincmonk PUBLIC ${PROJECT_SOURCE_DIR}/lib)
