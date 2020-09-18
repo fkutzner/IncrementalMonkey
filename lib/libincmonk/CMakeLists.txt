@@ -31,6 +31,7 @@ nm_add_library(libincmonk STATIC
   generators/SimplifiersParadiseGenerator.cpp
   generators/SimplifiersParadiseGenerator.h
 
+  verifier/BoundedMap.h
   verifier/Clause.cpp
   verifier/Clause.h
   verifier/Traits.h
