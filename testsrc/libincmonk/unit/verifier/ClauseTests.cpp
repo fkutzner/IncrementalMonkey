@@ -55,23 +55,23 @@ MATCHER_P3(ClauseEq, expectedLits, expectedState, expectedAddIdx, "")
   return std::equal(lits.begin(), lits.end(), expectedLits.begin());
 }
 
-class ClauseAllocator_AllocationTests : public ::testing::TestWithParam<std::vector<Lit>> {
+class ClauseCollection_AllocationTests : public ::testing::TestWithParam<std::vector<Lit>> {
 public:
-  virtual ~ClauseAllocator_AllocationTests() = default;
+  virtual ~ClauseCollection_AllocationTests() = default;
 };
 
 namespace {
-void insertClausesAndCheck(ClauseAllocator& underTest,
+void insertClausesAndCheck(ClauseCollection& underTest,
                            std::vector<std::vector<Lit>> const& inputClauses)
 {
-  std::vector<ClauseAllocator::Ref> allocatedRefs;
+  std::vector<ClauseCollection::Ref> allocatedRefs;
   for (auto const& clause : inputClauses) {
     allocatedRefs.push_back(
-        underTest.allocate(clause, ClauseVerificationState::Irrendundant, clause.size()));
+        underTest.add(clause, ClauseVerificationState::Irrendundant, clause.size()));
   }
 
   std::size_t idx = 0;
-  for (ClauseAllocator::Ref ref : allocatedRefs) {
+  for (ClauseCollection::Ref ref : allocatedRefs) {
     Clause const& cl = underTest.resolve(ref);
     ASSERT_THAT(cl, ClauseEq(inputClauses[idx], ClauseVerificationState::Irrendundant, cl.size()));
     ++idx;
@@ -79,15 +79,15 @@ void insertClausesAndCheck(ClauseAllocator& underTest,
 }
 }
 
-TEST_P(ClauseAllocator_AllocationTests, ClauseIsAllocatedCorrectlyInSingleAllocation)
+TEST_P(ClauseCollection_AllocationTests, ClauseIsAllocatedCorrectlyInSingleAllocation)
 {
-  ClauseAllocator underTest;
+  ClauseCollection underTest;
   insertClausesAndCheck(underTest, {GetParam()});
 }
 
-TEST_P(ClauseAllocator_AllocationTests, ClauseIsAllocatedCorrectlyInMultipleAllocations)
+TEST_P(ClauseCollection_AllocationTests, ClauseIsAllocatedCorrectlyInMultipleAllocations)
 {
-  ClauseAllocator underTest;
+  ClauseCollection underTest;
   std::vector<std::vector<Lit>> inputClauses = {
       {1_Lit, -4_Lit, -8_Lit, 9_Lit},
       {},
@@ -112,9 +112,9 @@ auto createIotaClause(Clause::size_type size) -> std::vector<Lit>
 }
 }
 
-TEST_P(ClauseAllocator_AllocationTests, ClauseRefsRemainValidAfterDoublingResize)
+TEST_P(ClauseCollection_AllocationTests, ClauseRefsRemainValidAfterDoublingResize)
 {
-  ClauseAllocator underTest;
+  ClauseCollection underTest;
 
   static std::vector<Lit> const hugeClause = createIotaClause(1 << 20);
   std::vector<std::vector<Lit>> inputClauses = {
@@ -128,9 +128,9 @@ TEST_P(ClauseAllocator_AllocationTests, ClauseRefsRemainValidAfterDoublingResize
   insertClausesAndCheck(underTest, inputClauses);
 }
 
-TEST_P(ClauseAllocator_AllocationTests, ClauseRefsRemainValidAfterExtraLargeResize)
+TEST_P(ClauseCollection_AllocationTests, ClauseRefsRemainValidAfterExtraLargeResize)
 {
-  ClauseAllocator underTest;
+  ClauseCollection underTest;
 
   // The allocator can't provide enough memory by doubling the allocation alone
   static std::vector<Lit> const hugeClause = createIotaClause(1 << 21);
@@ -146,7 +146,7 @@ TEST_P(ClauseAllocator_AllocationTests, ClauseRefsRemainValidAfterExtraLargeResi
 }
 
 // clang-format off
-INSTANTIATE_TEST_SUITE_P(, ClauseAllocator_AllocationTests,
+INSTANTIATE_TEST_SUITE_P(, ClauseCollection_AllocationTests,
   ::testing::Values(
     std::vector<Lit>{},
     std::vector<Lit>{1_Lit},
@@ -158,19 +158,19 @@ INSTANTIATE_TEST_SUITE_P(, ClauseAllocator_AllocationTests,
 );
 // clang-format on
 
-class ClauseAllocator_IterationTests
+class ClauseCollection_IterationTests
   : public ::testing::TestWithParam<std::vector<std::vector<Lit>>> {
 public:
-  virtual ~ClauseAllocator_IterationTests() = default;
+  virtual ~ClauseCollection_IterationTests() = default;
 };
 
-TEST_P(ClauseAllocator_IterationTests, iteratedRefsPointToCorrectClause)
+TEST_P(ClauseCollection_IterationTests, iteratedRefsPointToCorrectClause)
 {
-  ClauseAllocator underTest;
+  ClauseCollection underTest;
 
   std::vector<CRef> inputClauseRefs;
   for (std::vector<Lit> const& input : GetParam()) {
-    inputClauseRefs.push_back(underTest.allocate(input, ClauseVerificationState::Passive, 0));
+    inputClauseRefs.push_back(underTest.add(input, ClauseVerificationState::Passive, 0));
   }
 
   std::vector<CRef> iteratedClauseRefs{underTest.begin(), underTest.end()};
@@ -178,7 +178,7 @@ TEST_P(ClauseAllocator_IterationTests, iteratedRefsPointToCorrectClause)
 }
 
 // clang-format off
-INSTANTIATE_TEST_SUITE_P(, ClauseAllocator_IterationTests,
+INSTANTIATE_TEST_SUITE_P(, ClauseCollection_IterationTests,
   ::testing::Values(
     std::vector<std::vector<Lit>>{},
     std::vector<std::vector<Lit>>{{}},
@@ -197,8 +197,8 @@ INSTANTIATE_TEST_SUITE_P(, ClauseAllocator_IterationTests,
 
 TEST(ClauseRefIteratorTests, DefaultConstructedIteratorsAreEq)
 {
-  ClauseAllocator::RefIterator iter1{};
-  ClauseAllocator::RefIterator iter2{};
+  ClauseCollection::RefIterator iter1{};
+  ClauseCollection::RefIterator iter2{};
 
   EXPECT_TRUE(iter1 == iter2);
   EXPECT_FALSE(iter1 != iter2);
@@ -219,8 +219,8 @@ void checkClauseStateStore(Clause& clause)
 
 TEST(ClauseTests, WhenClauseStateIsSet_itsValueChanges)
 {
-  ClauseAllocator underTest;
-  CRef clauseRef = underTest.allocate(
+  ClauseCollection underTest;
+  CRef clauseRef = underTest.add(
       std::vector<Lit>{1_Lit, 2_Lit, 3_Lit}, ClauseVerificationState::Irrendundant, 1);
   Clause& clause = underTest.resolve(clauseRef);
   checkClauseStateStore(clause);

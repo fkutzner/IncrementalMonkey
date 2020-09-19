@@ -228,18 +228,18 @@ inline void BinaryClause::setDelIdx(ProofSequenceIdx idx) noexcept
 }
 
 
-inline auto ClauseAllocator::Ref::operator==(Ref rhs) const noexcept -> bool
+inline auto ClauseCollection::Ref::operator==(Ref rhs) const noexcept -> bool
 {
   return m_offset == rhs.m_offset;
 }
 
-inline auto ClauseAllocator::Ref::operator!=(Ref rhs) const noexcept -> bool
+inline auto ClauseCollection::Ref::operator!=(Ref rhs) const noexcept -> bool
 {
   return !(*this == rhs);
 }
 
-inline ClauseAllocator::RefIterator::RefIterator(char const* m_allocatorMemory,
-                                                 std::size_t highWaterMark) noexcept
+inline ClauseCollection::RefIterator::RefIterator(char const* m_allocatorMemory,
+                                                  std::size_t highWaterMark) noexcept
   : m_clausePtr{m_allocatorMemory}, m_distanceToEnd{highWaterMark}, m_currentRef{}
 {
   if (m_distanceToEnd == 0) {
@@ -248,38 +248,38 @@ inline ClauseAllocator::RefIterator::RefIterator(char const* m_allocatorMemory,
   // Otherwise, the iterator is valid and currentRef is 0, referring to the first clause
 }
 
-inline ClauseAllocator::RefIterator::RefIterator() noexcept
+inline ClauseCollection::RefIterator::RefIterator() noexcept
   : m_clausePtr{nullptr}, m_distanceToEnd{0}, m_currentRef{}
 {
 }
 
-inline auto ClauseAllocator::RefIterator::operator*() const noexcept -> Ref const&
+inline auto ClauseCollection::RefIterator::operator*() const noexcept -> Ref const&
 {
   assert(m_clausePtr != nullptr && "Dereferencing a non-dereferencaable RefIterator");
   return m_currentRef;
 }
 
-inline auto ClauseAllocator::RefIterator::operator->() const noexcept -> Ref const*
+inline auto ClauseCollection::RefIterator::operator->() const noexcept -> Ref const*
 {
   assert(m_clausePtr != nullptr && "Dereferencing a non-dereferencaable RefIterator");
   return &m_currentRef;
 }
 
-inline auto ClauseAllocator::RefIterator::operator++(int) noexcept -> RefIterator
+inline auto ClauseCollection::RefIterator::operator++(int) noexcept -> RefIterator
 {
   RefIterator old = *this;
   ++(*this);
   return old;
 }
 
-inline auto ClauseAllocator::RefIterator::operator==(RefIterator const& rhs) const noexcept -> bool
+inline auto ClauseCollection::RefIterator::operator==(RefIterator const& rhs) const noexcept -> bool
 {
   return (this == &rhs) || (m_clausePtr == nullptr && rhs.m_clausePtr == nullptr) ||
          (m_clausePtr == rhs.m_clausePtr && m_distanceToEnd == rhs.m_distanceToEnd &&
           m_currentRef == rhs.m_currentRef);
 }
 
-inline auto ClauseAllocator::RefIterator::operator!=(RefIterator const& rhs) const noexcept -> bool
+inline auto ClauseCollection::RefIterator::operator!=(RefIterator const& rhs) const noexcept -> bool
 {
   return !(*this == rhs);
 }

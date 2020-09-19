@@ -83,26 +83,26 @@ std::size_t sizeOfClauseInMem(Clause::size_type size) noexcept
   }
 }
 
-ClauseAllocator::ClauseAllocator()
+ClauseCollection::ClauseCollection()
 {
   resize(1 << 20);
 }
 
-ClauseAllocator::~ClauseAllocator()
+ClauseCollection::~ClauseCollection()
 {
   free(m_memory);
   m_memory = nullptr;
 }
 
-void ClauseAllocator::resize(std::size_t newSize)
+void ClauseCollection::resize(std::size_t newSize)
 {
   m_currentSize = newSize;
   m_memory = reinterpret_cast<char*>(realloc(m_memory, m_currentSize));
 }
 
-auto ClauseAllocator::allocate(gsl::span<Lit const> lits,
-                               ClauseVerificationState initialState,
-                               ProofSequenceIdx addIdx) -> Ref
+auto ClauseCollection::add(gsl::span<Lit const> lits,
+                           ClauseVerificationState initialState,
+                           ProofSequenceIdx addIdx) -> Ref
 {
   auto const numLits = lits.size();
   std::size_t sizeInMem = sizeOfClauseInMem(numLits);
@@ -121,36 +121,36 @@ auto ClauseAllocator::allocate(gsl::span<Lit const> lits,
   return result;
 }
 
-auto ClauseAllocator::resolve(Ref cref) noexcept -> Clause&
+auto ClauseCollection::resolve(Ref cref) noexcept -> Clause&
 {
   assert(isValidRef(cref));
   char* clausePtr = m_memory + 4 * cref.m_offset;
   return *(reinterpret_cast<Clause*>(clausePtr));
 }
 
-auto ClauseAllocator::resolve(Ref cref) const noexcept -> Clause const&
+auto ClauseCollection::resolve(Ref cref) const noexcept -> Clause const&
 {
   assert(isValidRef(cref));
   char const* clausePtr = m_memory + 4 * cref.m_offset;
   return *(reinterpret_cast<Clause const*>(clausePtr));
 }
 
-auto ClauseAllocator::begin() const noexcept -> RefIterator
+auto ClauseCollection::begin() const noexcept -> RefIterator
 {
   return RefIterator{m_memory, m_highWaterMark};
 }
 
-auto ClauseAllocator::end() const noexcept -> RefIterator
+auto ClauseCollection::end() const noexcept -> RefIterator
 {
   return RefIterator{};
 }
 
-auto ClauseAllocator::isValidRef(Ref cref) const noexcept -> bool
+auto ClauseCollection::isValidRef(Ref cref) const noexcept -> bool
 {
   return (4 * cref.m_offset) < m_highWaterMark;
 }
 
-auto ClauseAllocator::RefIterator::operator++() noexcept -> RefIterator&
+auto ClauseCollection::RefIterator::operator++() noexcept -> RefIterator&
 {
   Clause const* clause = reinterpret_cast<Clause const*>(m_clausePtr);
   std::size_t clauseBytes = sizeOfClauseInMem(clause->size());

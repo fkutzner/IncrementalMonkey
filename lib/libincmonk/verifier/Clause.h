@@ -127,7 +127,7 @@ public:
   void setDelIdx(ProofSequenceIdx idx) noexcept;
 
 private:
-  friend class ClauseAllocator;
+  friend class ClauseCollection;
   Clause(size_type size, ClauseVerificationState initialState, ProofSequenceIdx addIdx) noexcept;
 
   size_type m_size;
@@ -163,10 +163,10 @@ private:
 auto operator<<(std::ostream& stream, BinaryClause const& clause) -> std::ostream&;
 
 
-class ClauseAllocator final {
+class ClauseCollection final {
 public:
-  ClauseAllocator();
-  ~ClauseAllocator();
+  ClauseCollection();
+  ~ClauseCollection();
 
   class Ref {
   public:
@@ -175,7 +175,7 @@ public:
 
   private:
     std::size_t m_offset = 0;
-    friend class ClauseAllocator;
+    friend class ClauseCollection;
     friend class RefIterator;
   };
 
@@ -209,9 +209,8 @@ public:
     Ref m_currentRef;
   };
 
-  auto allocate(gsl::span<Lit const> lits,
-                ClauseVerificationState initialState,
-                ProofSequenceIdx addIdx) -> Ref;
+  auto add(gsl::span<Lit const> lits, ClauseVerificationState initialState, ProofSequenceIdx addIdx)
+      -> Ref;
   auto resolve(Ref cref) noexcept -> Clause&;
   auto resolve(Ref cref) const noexcept -> Clause const&;
 
@@ -227,7 +226,7 @@ private:
   std::size_t m_highWaterMark = 0;
 };
 
-using CRef = ClauseAllocator::Ref;
+using CRef = ClauseCollection::Ref;
 using OptCRef = std::optional<CRef>;
 }
 
