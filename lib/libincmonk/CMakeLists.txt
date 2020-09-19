@@ -34,6 +34,7 @@ nm_add_library(libincmonk STATIC
   verifier/BoundedMap.h
   verifier/Clause.cpp
   verifier/Clause.h
+  verifier/ClauseImpl.h
   verifier/Traits.h
 )
 
