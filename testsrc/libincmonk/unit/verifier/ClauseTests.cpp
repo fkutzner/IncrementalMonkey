@@ -158,6 +158,52 @@ INSTANTIATE_TEST_SUITE_P(, ClauseAllocator_allocationTests,
 );
 // clang-format on
 
+class ClauseAllocator_iterationTests
+  : public ::testing::TestWithParam<std::vector<std::vector<Lit>>> {
+public:
+  virtual ~ClauseAllocator_iterationTests() = default;
+};
+
+TEST_P(ClauseAllocator_iterationTests, iteratedRefsPointToCorrectClause)
+{
+  ClauseAllocator underTest;
+
+  std::vector<CRef> inputClauseRefs;
+  for (std::vector<Lit> const& input : GetParam()) {
+    inputClauseRefs.push_back(underTest.allocate(input, ClauseVerificationState::Passive, 0));
+  }
+
+  std::vector<CRef> iteratedClauseRefs{underTest.begin(), underTest.end()};
+  EXPECT_THAT(iteratedClauseRefs, Eq(inputClauseRefs));
+}
+
+// clang-format off
+INSTANTIATE_TEST_SUITE_P(, ClauseAllocator_iterationTests,
+  ::testing::Values(
+    std::vector<std::vector<Lit>>{},
+    std::vector<std::vector<Lit>>{{}},
+    std::vector<std::vector<Lit>>{{1_Lit}},
+    std::vector<std::vector<Lit>>{{-1_Lit, 2_Lit}},
+    std::vector<std::vector<Lit>>{{-1_Lit, 2_Lit}, {}},
+    std::vector<std::vector<Lit>>{{-1_Lit, 2_Lit}, {1_Lit}},
+    std::vector<std::vector<Lit>>{{-1_Lit, 2_Lit}, {1_Lit, 2_Lit}},
+    std::vector<std::vector<Lit>>{{-1_Lit, 2_Lit}, {}, {1_Lit, 2_Lit}},
+    std::vector<std::vector<Lit>>{{-1_Lit, 2_Lit}, {2_Lit}, {1_Lit, 2_Lit}},
+    std::vector<std::vector<Lit>>{{-1_Lit, 2_Lit}, {2_Lit, 3_Lit}, {1_Lit, 2_Lit}},
+    std::vector<std::vector<Lit>>{{-1_Lit, 2_Lit}, {4_Lit, 6_Lit, 8_Lit, 10_Lit}, {1_Lit, 2_Lit}}
+  )
+);
+// clang-format on
+
+TEST(ClauseRefIteratorTests, DefaultConstructedIteratorsAreEq)
+{
+  ClauseAllocator::RefIterator iter1{};
+  ClauseAllocator::RefIterator iter2{};
+
+  EXPECT_TRUE(iter1 == iter2);
+  EXPECT_FALSE(iter1 != iter2);
+}
+
 
 namespace {
 template <typename Clause>

@@ -68,6 +68,11 @@ auto operator<<(std::ostream& stream, BinaryClause const& clause) -> std::ostrea
   return stream;
 }
 
+auto maxLit(Var var) noexcept -> Lit
+{
+  return Lit{var, true};
+}
+
 std::size_t sizeOfClauseInMem(Clause::size_type size) noexcept
 {
   if (size <= 1) {
@@ -118,14 +123,47 @@ auto ClauseAllocator::allocate(gsl::span<Lit const> lits,
 
 auto ClauseAllocator::resolve(Ref cref) noexcept -> Clause&
 {
+  assert(isValidRef(cref));
   char* clausePtr = m_memory + 4 * cref.m_offset;
   return *(reinterpret_cast<Clause*>(clausePtr));
 }
 
 auto ClauseAllocator::resolve(Ref cref) const noexcept -> Clause const&
 {
+  assert(isValidRef(cref));
   char const* clausePtr = m_memory + 4 * cref.m_offset;
   return *(reinterpret_cast<Clause const*>(clausePtr));
 }
 
+auto ClauseAllocator::begin() const noexcept -> RefIterator
+{
+  return RefIterator{m_memory, m_highWaterMark};
+}
+
+auto ClauseAllocator::end() const noexcept -> RefIterator
+{
+  return RefIterator{};
+}
+
+auto ClauseAllocator::isValidRef(Ref cref) const noexcept -> bool
+{
+  return (4 * cref.m_offset) < m_highWaterMark;
+}
+
+auto ClauseAllocator::RefIterator::operator++() noexcept -> RefIterator&
+{
+  Clause const* clause = reinterpret_cast<Clause const*>(m_clausePtr);
+  std::size_t clauseBytes = sizeOfClauseInMem(clause->size());
+
+  m_clausePtr += clauseBytes;
+  assert(clauseBytes <= m_distanceToEnd);
+  m_distanceToEnd -= clauseBytes;
+  m_currentRef.m_offset += (clauseBytes / 4);
+
+  if (m_distanceToEnd == 0) {
+    m_clausePtr = nullptr;
+  }
+
+  return *this;
+}
 }
