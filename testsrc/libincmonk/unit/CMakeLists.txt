@@ -10,6 +10,7 @@ nm_add_tool(incmonktests.libincmonk.unit
   MuxGeneratorTests.cpp
   OracleTests.cpp
 
+  verifier/AssignmentTests.cpp
   verifier/BoundedMapTests.cpp
   verifier/ClauseTests.cpp
 )
