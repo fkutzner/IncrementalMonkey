@@ -55,9 +55,9 @@ MATCHER_P3(ClauseEq, expectedLits, expectedState, expectedAddIdx, "")
   return std::equal(lits.begin(), lits.end(), expectedLits.begin());
 }
 
-class ClauseAllocator_allocationTests : public ::testing::TestWithParam<std::vector<Lit>> {
+class ClauseAllocator_AllocationTests : public ::testing::TestWithParam<std::vector<Lit>> {
 public:
-  virtual ~ClauseAllocator_allocationTests() = default;
+  virtual ~ClauseAllocator_AllocationTests() = default;
 };
 
 namespace {
@@ -79,13 +79,13 @@ void insertClausesAndCheck(ClauseAllocator& underTest,
 }
 }
 
-TEST_P(ClauseAllocator_allocationTests, clauseIsAllocatedCorrectlyInSingleAllocation)
+TEST_P(ClauseAllocator_AllocationTests, ClauseIsAllocatedCorrectlyInSingleAllocation)
 {
   ClauseAllocator underTest;
   insertClausesAndCheck(underTest, {GetParam()});
 }
 
-TEST_P(ClauseAllocator_allocationTests, clauseIsAllocatedCorrectlyInMultipleAllocations)
+TEST_P(ClauseAllocator_AllocationTests, ClauseIsAllocatedCorrectlyInMultipleAllocations)
 {
   ClauseAllocator underTest;
   std::vector<std::vector<Lit>> inputClauses = {
@@ -112,7 +112,7 @@ auto createIotaClause(Clause::size_type size) -> std::vector<Lit>
 }
 }
 
-TEST_P(ClauseAllocator_allocationTests, clauseRefsRemainValidAfterDoublingResize)
+TEST_P(ClauseAllocator_AllocationTests, ClauseRefsRemainValidAfterDoublingResize)
 {
   ClauseAllocator underTest;
 
@@ -128,7 +128,7 @@ TEST_P(ClauseAllocator_allocationTests, clauseRefsRemainValidAfterDoublingResize
   insertClausesAndCheck(underTest, inputClauses);
 }
 
-TEST_P(ClauseAllocator_allocationTests, clauseRefsRemainValidAfterExtraLargeResize)
+TEST_P(ClauseAllocator_AllocationTests, ClauseRefsRemainValidAfterExtraLargeResize)
 {
   ClauseAllocator underTest;
 
@@ -146,7 +146,7 @@ TEST_P(ClauseAllocator_allocationTests, clauseRefsRemainValidAfterExtraLargeResi
 }
 
 // clang-format off
-INSTANTIATE_TEST_SUITE_P(, ClauseAllocator_allocationTests,
+INSTANTIATE_TEST_SUITE_P(, ClauseAllocator_AllocationTests,
   ::testing::Values(
     std::vector<Lit>{},
     std::vector<Lit>{1_Lit},
@@ -158,13 +158,13 @@ INSTANTIATE_TEST_SUITE_P(, ClauseAllocator_allocationTests,
 );
 // clang-format on
 
-class ClauseAllocator_iterationTests
+class ClauseAllocator_IterationTests
   : public ::testing::TestWithParam<std::vector<std::vector<Lit>>> {
 public:
-  virtual ~ClauseAllocator_iterationTests() = default;
+  virtual ~ClauseAllocator_IterationTests() = default;
 };
 
-TEST_P(ClauseAllocator_iterationTests, iteratedRefsPointToCorrectClause)
+TEST_P(ClauseAllocator_IterationTests, iteratedRefsPointToCorrectClause)
 {
   ClauseAllocator underTest;
 
@@ -178,7 +178,7 @@ TEST_P(ClauseAllocator_iterationTests, iteratedRefsPointToCorrectClause)
 }
 
 // clang-format off
-INSTANTIATE_TEST_SUITE_P(, ClauseAllocator_iterationTests,
+INSTANTIATE_TEST_SUITE_P(, ClauseAllocator_IterationTests,
   ::testing::Values(
     std::vector<std::vector<Lit>>{},
     std::vector<std::vector<Lit>>{{}},
@@ -217,7 +217,7 @@ void checkClauseStateStore(Clause& clause)
 }
 }
 
-TEST(ClauseTests, whenClauseStateIsSet_itsValueChanges)
+TEST(ClauseTests, WhenClauseStateIsSet_itsValueChanges)
 {
   ClauseAllocator underTest;
   CRef clauseRef = underTest.allocate(
@@ -226,13 +226,13 @@ TEST(ClauseTests, whenClauseStateIsSet_itsValueChanges)
   checkClauseStateStore(clause);
 }
 
-TEST(BinaryClauseTests, whenClauseStateIsSet_itsValueChanges)
+TEST(BinaryClauseTests, WhenClauseStateIsSet_itsValueChanges)
 {
   BinaryClause clause{15_Lit, ClauseVerificationState::Irrendundant, 1};
   checkClauseStateStore(clause);
 }
 
-TEST(LitTests, whenLitIsNegative_thenKeyMatchesItToAdjacentPositiveValue)
+TEST(LitTests, WhenLitIsNegative_thenKeyMatchesItToAdjacentPositiveValue)
 {
   Lit input = 5_Lit;
   std::size_t pos = Key<Lit>::get(input);
@@ -241,7 +241,7 @@ TEST(LitTests, whenLitIsNegative_thenKeyMatchesItToAdjacentPositiveValue)
   EXPECT_THAT(pos, Eq(neg + 1));
 }
 
-TEST(LitTests, distinctLitsHaveDistinctKeys)
+TEST(LitTests, DistinctLitsHaveDistinctKeys)
 {
   std::unordered_set<std::size_t> keys{Key<Lit>::get(1_Lit),
                                        Key<Lit>::get(-1_Lit),

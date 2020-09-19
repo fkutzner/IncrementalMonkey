@@ -49,7 +49,7 @@ struct Key<IntBox> {
   }
 };
 
-TEST(BoundedMapTests, reservesEnoughSpaceForSmallestVar)
+TEST(BoundedMapTests, ReservesEnoughSpaceForSmallestVar)
 {
   BoundedMap<IntBox, std::string> underTest{IntBox{0}};
   ASSERT_THAT(underTest, ::testing::SizeIs(1));
@@ -57,7 +57,7 @@ TEST(BoundedMapTests, reservesEnoughSpaceForSmallestVar)
   ASSERT_THAT(underTest[IntBox{0}], ::testing::Eq("foo"));
 }
 
-TEST(BoundedMapTests, reservesEnoughSpaceForVarWithIndex2)
+TEST(BoundedMapTests, ReservesEnoughSpaceForVarWithIndex2)
 {
   BoundedMap<IntBox, std::string> underTest{IntBox{1}};
   ASSERT_THAT(underTest, ::testing::SizeIs(3));
@@ -66,7 +66,7 @@ TEST(BoundedMapTests, reservesEnoughSpaceForVarWithIndex2)
   ASSERT_THAT(underTest[IntBox{3}], ::testing::Eq("foo"));
 }
 
-TEST(BoundedMapTests, reservesEnoughSpaceDuringResize)
+TEST(BoundedMapTests, ReservesEnoughSpaceDuringResize)
 {
   BoundedMap<IntBox, std::string> underTest{IntBox{0}};
   underTest.increaseSizeTo(IntBox{5});
