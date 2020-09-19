@@ -96,8 +96,12 @@ ClauseCollection::~ClauseCollection()
 
 void ClauseCollection::resize(std::size_t newSize)
 {
+  char* newMemory = reinterpret_cast<char*>(realloc(m_memory, newSize));
+  if (newMemory == nullptr) {
+    throw std::bad_alloc{};
+  }
   m_currentSize = newSize;
-  m_memory = reinterpret_cast<char*>(realloc(m_memory, m_currentSize));
+  m_memory = newMemory;
 }
 
 auto ClauseCollection::add(gsl::span<Lit const> lits,
