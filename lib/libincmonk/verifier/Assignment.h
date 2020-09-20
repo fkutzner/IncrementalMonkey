@@ -58,6 +58,7 @@ public:
   explicit Assignment(Lit maxLit);
 
   void add(Lit lit) noexcept;
+  void add(gsl::span<Lit const> lits) noexcept;
   auto get(Lit lit) const noexcept -> TBool;
   auto range(size_type start = 0) const noexcept -> Range;
   void clear(size_type start = 0) noexcept;
@@ -90,6 +91,13 @@ inline void Assignment::add(Lit lit) noexcept
   m_assignmentMap[lit.getVar()] = lit.isPositive() ? t_true : t_false;
   m_assignmentStack[m_numAssignments] = lit;
   ++m_numAssignments;
+}
+
+inline void Assignment::add(gsl::span<Lit const> lits) noexcept
+{
+  for (Lit lit : lits) {
+    add(lit);
+  }
 }
 
 inline auto Assignment::get(Lit lit) const noexcept -> TBool

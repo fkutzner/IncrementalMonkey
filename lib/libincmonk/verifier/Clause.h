@@ -225,6 +225,12 @@ public:
   using DeletedClausesRng = gsl::span<Ref const>;
   auto getDeletedClausesOrdered() const noexcept -> DeletedClausesRng;
 
+  ClauseCollection(ClauseCollection const&) = delete;
+  auto operator=(ClauseCollection const&) -> ClauseCollection& = delete;
+
+  ClauseCollection(ClauseCollection&&) noexcept;
+  auto operator=(ClauseCollection &&) -> ClauseCollection&;
+
 private:
   void resize(std::size_t newSize);
   auto isValidRef(Ref cref) const noexcept -> bool;

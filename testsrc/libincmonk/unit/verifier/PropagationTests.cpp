@@ -37,6 +37,7 @@
 #include <variant>
 #include <vector>
 
+using ::testing::UnorderedElementsAreArray;
 
 namespace incmonk::verifier {
 
@@ -53,10 +54,12 @@ enum Outcome { Conflict, NoConflict };
 struct PropagationResult {
   Outcome outcome;
 
-  // If a variable V is specified in `propagations`, either V or -V is expected
+  // If a variable V is specified in `propagatedLits`, either V or -V is expected
   // to be part of the assignment after propagation
-  std::vector<std::variant<Lit, Var>> propagations;
+  std::vector<std::variant<Lit, Var>> propagatedLits;
 
+  // Indices of (wrt the list of InputClause objects) of clauses which have entered
+  // the VerificationPending state during propagation
   std::vector<size_t> clausesMarkedForVerification;
 };
 
@@ -81,6 +84,11 @@ auto contains(std::unordered_set<T> const& set, T const& item) noexcept -> bool
   return set.find(item) != set.end();
 }
 
+
+// Checks whether an assignment given as a vector of literals matches
+// the expected assignment, which is given as a vector of std::variant<Lit,Var>
+// (with variables meaning that the variable must be assigned, but the truth
+// value doesn't matter)
 MATCHER_P(AssignmentMatches, expected, "")
 {
   if (expected.size() != arg.size()) {
@@ -105,6 +113,7 @@ MATCHER_P(AssignmentMatches, expected, "")
   return true;
 }
 
+// Orders clause references by their deletion index (ascending)
 class CRefDeletionCompare {
 public:
   CRefDeletionCompare(ClauseCollection const& clauses) : m_clauses{clauses} {}
@@ -121,6 +130,7 @@ private:
   ClauseCollection const& m_clauses;
 };
 
+// Registers all deletions given in `deletedClauses` with the clause collection
 void addDeletions(ClauseCollection& clauses, std::vector<CRef> deletedClauses)
 {
   std::sort(deletedClauses.begin(), deletedClauses.end(), CRefDeletionCompare{clauses});
@@ -130,12 +140,9 @@ void addDeletions(ClauseCollection& clauses, std::vector<CRef> deletedClauses)
   }
 }
 
-}
-
-TEST_P(PropagationTests, TestSuite)
+auto createClauseCollection(std::vector<InputClause> const& inputClauses)
+    -> std::pair<std::unordered_map<CRef, std::size_t>, ClauseCollection>
 {
-  std::vector<InputClause> inputClauses = std::get<1>(GetParam());
-  std::vector<PropagationCall> calls = std::get<2>(GetParam());
 
   ClauseCollection clauses;
 
@@ -156,6 +163,16 @@ TEST_P(PropagationTests, TestSuite)
 
   addDeletions(clauses, deletedClauses);
 
+  return std::make_pair(std::move(clauseIndices), std::move(clauses));
+}
+}
+
+TEST_P(PropagationTests, TestSuite)
+{
+  std::vector<InputClause> inputClauses = std::get<1>(GetParam());
+  std::vector<PropagationCall> calls = std::get<2>(GetParam());
+
+  auto [clauseIndices, clauses] = createClauseCollection(inputClauses);
   Lit const maxLit = 100_Lit;
   Assignment assignment{maxLit};
   Propagator underTest{clauses, assignment, maxLit};
@@ -163,33 +180,27 @@ TEST_P(PropagationTests, TestSuite)
   std::size_t callIndex = 0;
   for (PropagationCall const& call : calls) {
     assignment.clear();
+    assignment.add(call.toPropagate);
 
-    for (Lit toPropagate : call.toPropagate) {
-      assignment.add(toPropagate);
-    }
+    std::vector<CRef> newVerifWork;
+    auto propStart = assignment.range().begin();
+    OptCRef const conflict = underTest.propagateToFixpoint(propStart, call.callIdx, newVerifWork);
 
-    Assignment::size_type const numAssignmentsBeforeProp = assignment.size();
+    std::string const failMessage = "Failed at call " + std::to_string(callIndex);
 
-    std::vector<CRef> newObligations;
-    OptCRef conflict =
-        underTest.propagateToFixpoint(assignment.range().begin(), call.callIdx, newObligations);
+    bool const expectedOutcomeIsConflict = call.expectedResult.outcome == Outcome::Conflict;
+    EXPECT_EQ(conflict.has_value(), expectedOutcomeIsConflict) << failMessage;
 
-    std::string failMessage = "Failed at call " + std::to_string(callIndex);
-
-    EXPECT_EQ(conflict.has_value(), call.expectedResult.outcome == Outcome::Conflict)
-        << failMessage;
-    EXPECT_THAT(assignment.range(numAssignmentsBeforeProp),
-                AssignmentMatches(call.expectedResult.propagations))
+    auto const expectedPropagations = call.expectedResult.propagatedLits;
+    EXPECT_THAT(assignment.range(call.toPropagate.size()), AssignmentMatches(expectedPropagations))
         << failMessage;
 
     std::vector<std::size_t> newObligationsIdx;
-    for (CRef obligation : newObligations) {
+    for (CRef obligation : newVerifWork) {
       newObligationsIdx.push_back(clauseIndices[obligation]);
     }
-    EXPECT_THAT(
-        newObligationsIdx,
-        ::testing::UnorderedElementsAreArray(call.expectedResult.clausesMarkedForVerification))
-        << failMessage;
+    auto const expectedVerifWork = call.expectedResult.clausesMarkedForVerification;
+    EXPECT_THAT(newObligationsIdx, UnorderedElementsAreArray(expectedVerifWork)) << failMessage;
 
     ++callIndex;
   }

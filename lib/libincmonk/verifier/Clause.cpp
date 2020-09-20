@@ -189,4 +189,23 @@ auto ClauseCollection::RefIterator::operator++() noexcept -> RefIterator&
 
   return *this;
 }
+
+ClauseCollection::ClauseCollection(ClauseCollection&& rhs) noexcept
+{
+  *this = std::move(rhs);
+}
+
+auto ClauseCollection::operator=(ClauseCollection&& rhs) -> ClauseCollection&
+{
+  this->m_memory = rhs.m_memory;
+  this->m_currentSize = rhs.m_currentSize;
+  this->m_highWaterMark = rhs.m_highWaterMark;
+  this->m_deletedClauses = std::move(rhs.m_deletedClauses);
+
+  rhs.m_memory = nullptr;
+  rhs.m_currentSize = 0;
+  rhs.m_highWaterMark = 0;
+  rhs.m_deletedClauses.clear();
+  return *this;
+}
 }
