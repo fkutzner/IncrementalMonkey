@@ -129,7 +129,9 @@ auto Propagator::propagate(Lit newAssign) -> OptCRef
     if (isFromFuture(*watchers.unaryWatch, m_proofSequenceIndex)) {
       watchers.unaryWatch = std::nullopt;
     }
-    return watchers.unaryWatch->clause;
+    else {
+      return watchers.unaryWatch->clause;
+    }
   }
 
   if (OptCRef conflict = propagateBinaries(watchers.coreBinaries); conflict.has_value()) {

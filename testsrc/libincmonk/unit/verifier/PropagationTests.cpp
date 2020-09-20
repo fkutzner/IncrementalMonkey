@@ -380,6 +380,37 @@ INSTANTIATE_TEST_SUITE_P(, PropagationTests,
         {5, {-2_Lit, -1_Lit}, PropagationResult{Outcome::NoConflict, {3_Lit}, {}}},
         {3, {-1_Lit, -2_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}}
       }
+    ),
+
+    std::make_tuple(
+      "Clauses with max deletion time are not considered deleted",
+      std::vector<InputClause> {
+        {6, std::numeric_limits<ProofSequenceIdx>::max(), ClauseVerificationState::Passive, {1_Lit, -2_Lit}}
+      },
+      std::vector<PropagationCall> {
+        {14, {2_Lit}, PropagationResult{Outcome::NoConflict, {1_Lit}, {}}}
+      }
+    ),
+
+    std::make_tuple(
+      "Far clauses that are used in conflict are used for propagation as core clauses",
+      std::vector<InputClause> {
+        {6, std::numeric_limits<ProofSequenceIdx>::max(), ClauseVerificationState::Passive, {1_Lit, -2_Lit}}
+      },
+      std::vector<PropagationCall> {
+        {14, {-1_Lit, 2_Lit}, PropagationResult{Outcome::Conflict, {}, {0}}},
+        {14, {2_Lit}, PropagationResult{Outcome::NoConflict, {1_Lit}, {}}}
+      }
+    ),
+
+    std::make_tuple(
+      "Unaries are deactivated in propagations preceding their time of addition",
+      std::vector<InputClause> {
+        {6, std::numeric_limits<ProofSequenceIdx>::max(), ClauseVerificationState::Passive, {-2_Lit}}
+      },
+      std::vector<PropagationCall> {
+        {5, {2_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}}
+      }
     )
   )
 );
