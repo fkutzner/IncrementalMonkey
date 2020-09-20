@@ -81,8 +81,10 @@ auto Assignment::empty() const noexcept -> bool
 
 void Assignment::increaseSizeTo(Lit newMaxLit)
 {
+  newMaxLit = maxLit(newMaxLit.getVar());
   assert(newMaxLit.getVar().getRawValue() >= m_maxVar.getRawValue());
   m_assignmentStack.resize(newMaxLit.getVar().getRawValue() + 1);
   m_assignmentMap.increaseSizeTo(newMaxLit.getVar());
+  m_maxVar = newMaxLit.getVar();
 }
 }
