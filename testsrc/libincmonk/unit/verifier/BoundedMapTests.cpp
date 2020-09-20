@@ -59,8 +59,8 @@ TEST(BoundedMapTests, ReservesEnoughSpaceForSmallestVar)
 
 TEST(BoundedMapTests, ReservesEnoughSpaceForVarWithIndex2)
 {
-  BoundedMap<IntBox, std::string> underTest{IntBox{1}};
-  ASSERT_THAT(underTest, ::testing::SizeIs(3));
+  BoundedMap<IntBox, std::string> underTest{IntBox{3}};
+  ASSERT_THAT(underTest, ::testing::SizeIs(7));
 
   underTest[IntBox{3}] = "foo";
   ASSERT_THAT(underTest[IntBox{3}], ::testing::Eq("foo"));
