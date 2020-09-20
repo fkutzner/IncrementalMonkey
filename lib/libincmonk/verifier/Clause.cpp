@@ -25,6 +25,7 @@
 */
 
 #include <libincmonk/FastRand.h>
+#include <libincmonk/verifier/BoundedMap.h>
 #include <libincmonk/verifier/Clause.h>
 
 #include <tsl/hopscotch_set.h>
@@ -170,6 +171,40 @@ private:
   tsl::hopscotch_set<CRef, CRefHash, CRefEq> m_refs;
 };
 
+class ClauseOccurrences {
+public:
+  ClauseOccurrences(ClauseCollection const& clauses) : m_occurrences{1_Lit}, m_maxLit{1_Lit}
+  {
+    for (CRef cref : clauses) {
+      add(cref, clauses.resolve(cref).getLiterals());
+    }
+  }
+
+  void add(CRef cref, gsl::span<Lit const> lits)
+  {
+    for (Lit lit : lits) {
+      // TODO: Lit, Var comparison operators
+      if (lit.getVar().getRawValue() > m_maxLit.getVar().getRawValue()) {
+        m_maxLit = maxLit(lit.getVar());
+        m_occurrences.increaseSizeTo(m_maxLit);
+      }
+      m_occurrences[lit].push_back(cref);
+    }
+  }
+
+  auto get(Lit lit) const noexcept -> gsl::span<CRef const>
+  {
+    if (lit.getVar().getRawValue() > m_maxLit.getVar().getRawValue()) {
+      return {};
+    }
+    return m_occurrences[lit];
+  }
+
+private:
+  BoundedMap<Lit, std::vector<CRef>> m_occurrences;
+  Lit m_maxLit;
+};
+
 
 ClauseCollection::ClauseCollection()
 {
@@ -213,6 +248,10 @@ auto ClauseCollection::add(LitSpan lits,
 
   if (m_clauseFinder != nullptr) {
     m_clauseFinder->add(result);
+  }
+
+  if (m_clauseOccurrences != nullptr) {
+    m_clauseOccurrences->add(result, lits);
   }
 
   return result;
@@ -309,5 +348,13 @@ auto ClauseCollection::find(LitSpan lits) const noexcept -> std::optional<Ref>
     m_clauseFinder = std::make_unique<ClauseFinder>(*this);
   }
   return m_clauseFinder->find(lits);
+}
+
+auto ClauseCollection::getOccurrences(Lit lit) const noexcept -> OccRng
+{
+  if (m_clauseOccurrences == nullptr) {
+    m_clauseOccurrences = std::make_unique<ClauseOccurrences>(*this);
+  }
+  return m_clauseOccurrences->get(lit);
 }
 }

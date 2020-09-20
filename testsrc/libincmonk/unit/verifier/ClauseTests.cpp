@@ -34,6 +34,8 @@
 #include <vector>
 
 using ::testing::Eq;
+using ::testing::IsEmpty;
+using ::testing::UnorderedElementsAre;
 
 namespace incmonk::verifier {
 
@@ -196,14 +198,14 @@ INSTANTIATE_TEST_SUITE_P(, ClauseCollection_IterationTests,
 // clang-format on
 
 
-TEST(ClauseCollection_FindTests, WhenClauseDBIsEmptyNoClauseIsFound)
+TEST(ClauseCollection_FindTests, WhenClauseDBIsEmpty_NoClauseIsFound)
 {
   ClauseCollection underTest;
   EXPECT_THAT(underTest.find({}), Eq(std::nullopt));
   EXPECT_THAT(underTest.find(std::vector<Lit>{10_Lit}), Eq(std::nullopt));
 }
 
-TEST(ClauseCollection_FindTests, WhenClauseDBContainsSingleClauseItIsReturnedByFind)
+TEST(ClauseCollection_FindTests, WhenClauseDBContainsSingleClause_ItIsReturnedByFind)
 {
   ClauseCollection underTest;
   CRef clause =
@@ -225,6 +227,54 @@ TEST(ClauseCollection_FindTests, WhenAddIsCalledAfterFind_NewClausesCanBeFound)
   EXPECT_THAT(underTest.find(std::vector<Lit>{1_Lit, -20_Lit, 5_Lit}), Eq(clause2));
   EXPECT_THAT(underTest.find(std::vector<Lit>{10_Lit, 20_Lit, 5_Lit}), Eq(std::nullopt));
   EXPECT_THAT(underTest.find(std::vector<Lit>{-20_Lit, 5_Lit, 1_Lit}), Eq(clause2));
+}
+
+TEST(ClauseCollection_OccurrenceTests, WhenClauseDBIsEmpty_NoOccurrencesAreFound)
+{
+  ClauseCollection underTest;
+  EXPECT_THAT(underTest.getOccurrences({2_Lit}), IsEmpty());
+}
+
+namespace {
+template <typename T>
+auto toVec(gsl::span<T const> span) -> std::vector<T>
+{
+  return std::vector<T>{span.begin(), span.end()};
+}
+}
+
+TEST(ClauseCollection_OccurrenceTests, WhenClauseDBContainsOneClause_OnlyItsLiteralsAreInOccMap)
+{
+  ClauseCollection underTest;
+  auto const irredundant = ClauseVerificationState::Irrendundant;
+  CRef clause1 = underTest.add(std::vector<Lit>{1_Lit, -20_Lit, 5_Lit}, irredundant, 0);
+
+  EXPECT_THAT(toVec(underTest.getOccurrences(2_Lit)), IsEmpty());
+  EXPECT_THAT(toVec(underTest.getOccurrences(1_Lit)), UnorderedElementsAre(clause1));
+  EXPECT_THAT(toVec(underTest.getOccurrences(-1_Lit)), IsEmpty());
+  EXPECT_THAT(toVec(underTest.getOccurrences(-20_Lit)), UnorderedElementsAre(clause1));
+  EXPECT_THAT(toVec(underTest.getOccurrences(20_Lit)), IsEmpty());
+  EXPECT_THAT(toVec(underTest.getOccurrences(5_Lit)), UnorderedElementsAre(clause1));
+  EXPECT_THAT(toVec(underTest.getOccurrences(-5_Lit)), IsEmpty());
+}
+
+TEST(ClauseCollection_OccurrenceTests, WhenClauseDBContainsOneClause_ItsLiteralsAreInOccMap)
+{
+  ClauseCollection underTest;
+  auto const irredundant = ClauseVerificationState::Irrendundant;
+  CRef clause1 = underTest.add(std::vector<Lit>{1_Lit, -20_Lit, 5_Lit}, irredundant, 0);
+
+  EXPECT_THAT(toVec(underTest.getOccurrences(1_Lit)), UnorderedElementsAre(clause1));
+  EXPECT_THAT(toVec(underTest.getOccurrences(-20_Lit)), UnorderedElementsAre(clause1));
+  EXPECT_THAT(toVec(underTest.getOccurrences(5_Lit)), UnorderedElementsAre(clause1));
+
+  CRef clause2 = underTest.add(std::vector<Lit>{1_Lit, 20_Lit, 3_Lit}, irredundant, 0);
+
+  EXPECT_THAT(toVec(underTest.getOccurrences(1_Lit)), UnorderedElementsAre(clause1, clause2));
+  EXPECT_THAT(toVec(underTest.getOccurrences(-20_Lit)), UnorderedElementsAre(clause1));
+  EXPECT_THAT(toVec(underTest.getOccurrences(20_Lit)), UnorderedElementsAre(clause2));
+  EXPECT_THAT(toVec(underTest.getOccurrences(5_Lit)), UnorderedElementsAre(clause1));
+  EXPECT_THAT(toVec(underTest.getOccurrences(3_Lit)), UnorderedElementsAre(clause2));
 }
 
 

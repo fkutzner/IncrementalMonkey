@@ -32,6 +32,7 @@
 #include <gsl/span>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <ostream>
 #include <unordered_map>
@@ -143,6 +144,7 @@ private:
 auto operator<<(std::ostream& stream, Clause const& clause) -> std::ostream&;
 
 class ClauseFinder;
+class ClauseOccurrences;
 
 class ClauseCollection final {
 public:
@@ -193,12 +195,15 @@ public:
 
   using LitSpan = gsl::span<Lit const>;
   using DeletedClausesRng = gsl::span<Ref const>;
+  using OccRng = gsl::span<Ref const>;
 
 
   auto add(LitSpan lits, ClauseVerificationState initialState, ProofSequenceIdx addIdx) -> Ref;
   auto resolve(Ref cref) noexcept -> Clause&;
   auto resolve(Ref cref) const noexcept -> Clause const&;
   auto find(LitSpan lits) const noexcept -> std::optional<Ref>;
+  auto getOccurrences(Lit lit) const noexcept -> OccRng;
+
   auto begin() const noexcept -> RefIterator;
   auto end() const noexcept -> RefIterator;
 
@@ -222,6 +227,7 @@ private:
 
   std::vector<Ref> m_deletedClauses;
   mutable std::unique_ptr<ClauseFinder> m_clauseFinder;
+  mutable std::unique_ptr<ClauseOccurrences> m_clauseOccurrences;
 };
 
 using CRef = ClauseCollection::Ref;
