@@ -28,6 +28,7 @@
 
 #include <libincmonk/verifier/Clause.h>
 
+#include <cassert>
 #include <cstdint>
 #include <gsl/span>
 #include <iterator>
