@@ -31,8 +31,10 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <variant>
 #include <vector>
 
 
@@ -50,7 +52,11 @@ enum Outcome { Conflict, NoConflict };
 
 struct PropagationResult {
   Outcome outcome;
-  std::vector<Lit> propagations;
+
+  // If a variable V is specified in `propagations`, either V or -V is expected
+  // to be part of the assignment after propagation
+  std::vector<std::variant<Lit, Var>> propagations;
+
   std::vector<size_t> clausesMarkedForVerification;
 };
 
@@ -68,6 +74,38 @@ public:
   virtual ~PropagationTests() = default;
 };
 
+namespace {
+template <typename T>
+auto contains(std::unordered_set<T> const& set, T const& item) noexcept -> bool
+{
+  return set.find(item) != set.end();
+}
+
+MATCHER_P(AssignmentMatches, expected, "")
+{
+  if (expected.size() != arg.size()) {
+    return false;
+  }
+
+  std::unordered_set<Lit> argSet{arg.begin(), arg.end()};
+
+  for (std::variant<Lit, Var> expectedItem : expected) {
+    if (Lit* lit = std::get_if<Lit>(&expectedItem); lit != nullptr) {
+      if (!contains(argSet, *lit)) {
+        return false;
+      }
+    }
+    else if (Var* var = std::get_if<Var>(&expectedItem); var != nullptr) {
+      if (!contains(argSet, Lit{*var, true}) && !contains(argSet, Lit{*var, false})) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+}
+
 TEST_P(PropagationTests, TestSuite)
 {
   std::vector<InputClause> inputClauses = std::get<1>(GetParam());
@@ -75,9 +113,13 @@ TEST_P(PropagationTests, TestSuite)
 
   ClauseCollection clauses;
 
+  std::unordered_map<CRef, std::size_t> clauseIndices;
+  std::size_t currentIndex = 0;
   for (InputClause const& input : inputClauses) {
     CRef cref = clauses.add(input.lits, input.state, input.addedIdx);
     clauses.resolve(cref).setDelIdx(input.deletedIdx);
+    clauseIndices[cref] = currentIndex;
+    ++currentIndex;
   }
 
   Lit const maxLit = 100_Lit;
@@ -91,19 +133,23 @@ TEST_P(PropagationTests, TestSuite)
       assignment.add(toPropagate);
     }
 
-    Assignment::size_type const numAssignmentsBeforePropagation = assignment.size();
+    Assignment::size_type const numAssignmentsBeforeProp = assignment.size();
 
     std::vector<CRef> newObligations;
     OptCRef conflict =
         underTest.propagateToFixpoint(assignment.range().begin(), call.callIdx, newObligations);
 
     EXPECT_EQ(conflict.has_value(), call.expectedResult.outcome == Outcome::Conflict);
-    Assignment::Range newAssignmentsRng = assignment.range(numAssignmentsBeforePropagation);
-    std::vector<Lit> newAssignments{newAssignmentsRng.begin(), newAssignmentsRng.end()};
-    EXPECT_THAT(newAssignments,
-                ::testing::UnorderedElementsAreArray(call.expectedResult.propagations));
+    EXPECT_THAT(assignment.range(numAssignmentsBeforeProp),
+                AssignmentMatches(call.expectedResult.propagations));
 
-    // TODO: also test verification work
+    std::vector<std::size_t> newObligationsIdx;
+    for (CRef obligation : newObligations) {
+      newObligationsIdx.push_back(clauseIndices[obligation]);
+    }
+    EXPECT_THAT(
+        newObligationsIdx,
+        ::testing::UnorderedElementsAreArray(call.expectedResult.clausesMarkedForVerification));
   }
 }
 
@@ -186,25 +232,25 @@ INSTANTIATE_TEST_SUITE_P(, PropagationTests,
     ),
 
     std::make_tuple(
-      "Conflicts in binaries are reported",
+      "Conflicts in binaries are reported & new verification work is marked",
       std::vector<InputClause> {
         {5, 13, ClauseVerificationState::Passive, {10_Lit, -2_Lit}},
         {4, 13, ClauseVerificationState::VerificationPending, {-10_Lit, -3_Lit}},
         {3, 13, ClauseVerificationState::Passive, {3_Lit, -2_Lit}}
       },
       std::vector<PropagationCall> {
-        {7, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit, 3_Lit}, {}}}
+        {7, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit, 3_Lit}, {0, 2}}}
       }
     ),
 
     std::make_tuple(
-      "Conflicts in far unaries are reported",
+      "Conflicts in far unaries are reported & new verification work is marked",
       std::vector<InputClause> {
         {5, 13, ClauseVerificationState::Passive, {10_Lit, -2_Lit}},
         {4, 13, ClauseVerificationState::Passive, {-10_Lit}}
       },
       std::vector<PropagationCall> {
-        {7, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit}, {}}}
+        {7, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit}, {0, 1}}}
       }
     ),
 
@@ -254,8 +300,23 @@ INSTANTIATE_TEST_SUITE_P(, PropagationTests,
         {4, 13, ClauseVerificationState::Passive, {1_Lit, -2_Lit, -3_Lit}},
       },
       std::vector<PropagationCall> {
-        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {3_Lit}, {}}},
-        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {3_Lit}, {}}}
+        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {3_Var}, {0, 1}}},
+        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {3_Var}, {}}}
+      }
+    ),
+
+    std::make_tuple(
+      "Clauses are marked as verification work are distinct",
+      std::vector<InputClause> {
+        {6, 13, ClauseVerificationState::Passive, {1_Lit, -2_Lit, 3_Lit}},
+        {5, 13, ClauseVerificationState::Passive, {-3_Lit, 4_Lit}},
+        {4, 13, ClauseVerificationState::Irrendundant, {-3_Lit, 5_Lit}},
+        {3, 13, ClauseVerificationState::Passive, {-4_Lit, -5_Lit, 6_Lit}},
+        {2, 13, ClauseVerificationState::Passive, {-6_Lit}},
+      },
+      std::vector<PropagationCall> {
+        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {3_Var, 4_Var, 5_Var, 6_Var}, {0, 1, 3, 4}}},
+        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {3_Var, 4_Var, 5_Var, 6_Var}, {}}}
       }
     )
   )

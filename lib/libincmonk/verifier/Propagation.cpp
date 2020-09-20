@@ -109,7 +109,7 @@ auto Propagator::propagateToFixpoint(Assignment::const_iterator start,
   Assignment::const_iterator cursor = start;
   while (cursor != m_assignment.range().end()) {
     if (OptCRef conflict = propagate(*cursor); conflict.has_value()) {
-      // TODO Analyze conflict, fill newObligations, reset reasons
+      analyzeCoreClausesInConflict(*conflict, newObligations);
       return conflict;
     }
     ++cursor;
@@ -129,13 +129,13 @@ auto Propagator::propagate(Lit newAssign) -> OptCRef
     return watchers.unaryWatch->clause;
   }
 
-  if (OptCRef conflict = propInBins(newAssign, watchers.coreBinaries); conflict.has_value()) {
+  if (OptCRef conflict = propagateBinaries(watchers.coreBinaries); conflict.has_value()) {
     return conflict;
   }
   if (OptCRef conflict = propInNonBins<true>(newAssign, watchers.core); conflict.has_value()) {
     return conflict;
   }
-  if (OptCRef conflict = propInBins(newAssign, watchers.farBinaries); conflict.has_value()) {
+  if (OptCRef conflict = propagateBinaries(watchers.farBinaries); conflict.has_value()) {
     return conflict;
   }
   if (OptCRef conflict = propInNonBins<false>(newAssign, watchers.far); conflict.has_value()) {
@@ -155,7 +155,7 @@ void eraseFromWatcherList(Watcher& toErase, WatcherList& toEraseFrom)
 }
 }
 
-auto Propagator::propInBins(Lit newAssign, WatcherList& watchers) -> OptCRef
+auto Propagator::propagateBinaries(WatcherList& watchers) -> OptCRef
 {
   for (WatcherList::size_type curIdx = 0; curIdx < watchers.size();) {
     Watcher& watcher = watchers[curIdx];
@@ -249,6 +249,33 @@ auto Propagator::propInNonBins(Lit newAssign, WatcherList& watchers) -> OptCRef
   }
 
   return std::nullopt;
+}
+
+void Propagator::analyzeCoreClausesInConflict(CRef conflict, CRefVec& newObligations)
+{
+  std::vector<CRef> analysisWork{conflict};
+
+  while (!analysisWork.empty()) {
+    CRef const currentRef = analysisWork.back();
+    Clause& currentClause = m_clauses.resolve(currentRef);
+    analysisWork.pop_back();
+
+    if (currentClause.getState() == ClauseVerificationState::Passive) {
+      currentClause.setState(ClauseVerificationState::VerificationPending);
+      newObligations.push_back(currentRef);
+
+      // Re-adding the clause as a core clause. It will be cleaned from the far
+      // watchers on-the-fly later on.
+      addClause(currentRef);
+    }
+
+    for (Lit l : currentClause.getLiterals()) {
+      if (OptCRef reason = m_watchers[-l].assignmentReason; reason.has_value()) {
+        analysisWork.push_back(*reason);
+        m_watchers[-l].assignmentReason = std::nullopt;
+      }
+    }
+  }
 }
 
 }

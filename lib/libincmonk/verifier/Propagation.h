@@ -64,9 +64,11 @@ private:
   auto getWatcherList(Lit watchedLit, bool isBinary, bool isFar) noexcept -> WatcherList&;
 
   auto propagate(Lit newAssign) -> OptCRef;
-  auto propInBins(Lit newAssign, WatcherList& watchers) -> OptCRef;
+  auto propagateBinaries(WatcherList& watchers) -> OptCRef;
   template <bool IsInCore>
   auto propInNonBins(Lit newAssign, WatcherList& watchers) -> OptCRef;
+
+  void analyzeCoreClausesInConflict(CRef conflict, CRefVec& newObligations);
 
   struct WatcherLists {
     WatcherLists() = default;
