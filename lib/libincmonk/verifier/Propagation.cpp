@@ -40,19 +40,22 @@ auto isFromFuture(Watcher const& watcher, ProofSequenceIdx currentIndex) -> bool
 
 Propagator::Propagator(ClauseCollection& clauses, Assignment& assignment, Lit maxLit)
   : m_clauses{clauses}
+  , m_deletedClauses{clauses.getDeletedClausesOrdered()}
   , m_assignment{assignment}
   , m_watchers{maxLit}
   , m_proofSequenceIndex{std::numeric_limits<ProofSequenceIdx>::max()}
 {
-  for (CRef clause : clauses) {
-    // TODO: stash away deleted clauses for later addition
-    addClause(clause);
+  for (CRef cref : clauses) {
+    Clause const& clause = m_clauses.resolve(cref);
+    if (clause.getDelIdx() == std::numeric_limits<ProofSequenceIdx>::max()) {
+      addClause(cref, clause);
+    }
+    // Clauses with a deletion index will be added on-demand
   }
 }
 
-void Propagator::addClause(CRef cref)
+void Propagator::addClause(CRef cref, Clause const& clause)
 {
-  Clause const& clause = m_clauses.resolve(cref);
   bool const isUnary = (clause.size() == 1);
 
   if (isUnary) {
@@ -100,7 +103,7 @@ auto Propagator::propagateToFixpoint(Assignment::const_iterator start,
   assert(curProofSeqIdx <= m_proofSequenceIndex);
   m_proofSequenceIndex = curProofSeqIdx;
 
-  // TODO: add deleted clauses that are needed now
+  resurrectDeletedClauses();
 
   for (Lit l : m_assignment.range()) {
     m_watchers[l].assignmentReason = std::nullopt;
@@ -251,6 +254,27 @@ auto Propagator::propInNonBins(Lit newAssign, WatcherList& watchers) -> OptCRef
   return std::nullopt;
 }
 
+void Propagator::resurrectDeletedClauses()
+{
+  std::size_t resurrected = 0;
+  for (auto crIter = m_deletedClauses.rbegin(); crIter != m_deletedClauses.rend(); ++crIter) {
+    CRef crefToAdd = *crIter;
+    Clause& clauseToAdd = m_clauses.resolve(crefToAdd);
+
+    if (clauseToAdd.getDelIdx() <= m_proofSequenceIndex) {
+      break;
+    }
+
+    if (clauseToAdd.getAddIdx() < m_proofSequenceIndex) {
+      addClause(crefToAdd, clauseToAdd);
+      ++resurrected;
+    }
+  }
+
+  std::size_t remaining = m_deletedClauses.size() - resurrected;
+  m_deletedClauses = m_deletedClauses.subspan(0, remaining);
+}
+
 void Propagator::analyzeCoreClausesInConflict(CRef conflict, CRefVec& newObligations)
 {
   std::vector<CRef> analysisWork{conflict};
@@ -266,7 +290,7 @@ void Propagator::analyzeCoreClausesInConflict(CRef conflict, CRefVec& newObligat
 
       // Re-adding the clause as a core clause. It will be cleaned from the far
       // watchers on-the-fly later on.
-      addClause(currentRef);
+      addClause(currentRef, currentClause);
     }
 
     for (Lit l : currentClause.getLiterals()) {

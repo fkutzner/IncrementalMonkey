@@ -34,6 +34,7 @@
 #include <limits>
 #include <optional>
 #include <ostream>
+#include <vector>
 
 namespace incmonk::verifier {
 
@@ -219,6 +220,11 @@ public:
   auto begin() const noexcept -> RefIterator;
   auto end() const noexcept -> RefIterator;
 
+  void markDeleted(Ref cref, ProofSequenceIdx atIdx);
+
+  using DeletedClausesRng = gsl::span<Ref const>;
+  auto getDeletedClausesOrdered() const noexcept -> DeletedClausesRng;
+
 private:
   void resize(std::size_t newSize);
   auto isValidRef(Ref cref) const noexcept -> bool;
@@ -226,6 +232,8 @@ private:
   char* m_memory = nullptr;
   std::size_t m_currentSize = 0;
   std::size_t m_highWaterMark = 0;
+
+  std::vector<Ref> m_deletedClauses;
 };
 
 using CRef = ClauseCollection::Ref;

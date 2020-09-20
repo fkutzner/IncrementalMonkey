@@ -58,17 +58,19 @@ public:
 private:
   enum class WatcherPos { First, Second };
 
-  void addClause(CRef clause);
+  void addClause(CRef cref, Clause const& clause);
   auto makeWatcher(CRef cref, Clause const& clause, WatcherPos watcherPos) const noexcept
       -> Watcher;
   auto getWatcherList(Lit watchedLit, bool isBinary, bool isFar) noexcept -> WatcherList&;
+
+  void resurrectDeletedClauses();
+  void analyzeCoreClausesInConflict(CRef conflict, CRefVec& newObligations);
 
   auto propagate(Lit newAssign) -> OptCRef;
   auto propagateBinaries(WatcherList& watchers) -> OptCRef;
   template <bool IsInCore>
   auto propInNonBins(Lit newAssign, WatcherList& watchers) -> OptCRef;
 
-  void analyzeCoreClausesInConflict(CRef conflict, CRefVec& newObligations);
 
   struct WatcherLists {
     WatcherLists() = default;
@@ -83,6 +85,7 @@ private:
   };
 
   ClauseCollection& m_clauses;
+  ClauseCollection::DeletedClausesRng m_deletedClauses;
   Assignment& m_assignment;
   BoundedMap<Lit, WatcherLists> m_watchers;
   ProofSequenceIdx m_proofSequenceIndex;

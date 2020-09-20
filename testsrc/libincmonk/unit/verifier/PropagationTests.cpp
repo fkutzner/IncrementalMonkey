@@ -104,6 +104,32 @@ MATCHER_P(AssignmentMatches, expected, "")
 
   return true;
 }
+
+class CRefDeletionCompare {
+public:
+  CRefDeletionCompare(ClauseCollection const& clauses) : m_clauses{clauses} {}
+
+  auto operator()(CRef lhs, CRef rhs) const noexcept -> bool
+  {
+    Clause const& lhsClause = m_clauses.resolve(lhs);
+    Clause const& rhsClause = m_clauses.resolve(rhs);
+
+    return lhsClause.getDelIdx() < rhsClause.getDelIdx();
+  }
+
+private:
+  ClauseCollection const& m_clauses;
+};
+
+void addDeletions(ClauseCollection& clauses, std::vector<CRef> deletedClauses)
+{
+  std::sort(deletedClauses.begin(), deletedClauses.end(), CRefDeletionCompare{clauses});
+  for (CRef delRef : deletedClauses) {
+    Clause const& delClause = clauses.resolve(delRef);
+    clauses.markDeleted(delRef, delClause.getDelIdx());
+  }
+}
+
 }
 
 TEST_P(PropagationTests, TestSuite)
@@ -114,18 +140,27 @@ TEST_P(PropagationTests, TestSuite)
   ClauseCollection clauses;
 
   std::unordered_map<CRef, std::size_t> clauseIndices;
+  std::vector<CRef> deletedClauses;
+
   std::size_t currentIndex = 0;
   for (InputClause const& input : inputClauses) {
     CRef cref = clauses.add(input.lits, input.state, input.addedIdx);
     clauses.resolve(cref).setDelIdx(input.deletedIdx);
     clauseIndices[cref] = currentIndex;
     ++currentIndex;
+
+    if (input.deletedIdx < std::numeric_limits<ProofSequenceIdx>::max()) {
+      deletedClauses.push_back(cref);
+    }
   }
+
+  addDeletions(clauses, deletedClauses);
 
   Lit const maxLit = 100_Lit;
   Assignment assignment{maxLit};
   Propagator underTest{clauses, assignment, maxLit};
 
+  std::size_t callIndex = 0;
   for (PropagationCall const& call : calls) {
     assignment.clear();
 
@@ -139,9 +174,13 @@ TEST_P(PropagationTests, TestSuite)
     OptCRef conflict =
         underTest.propagateToFixpoint(assignment.range().begin(), call.callIdx, newObligations);
 
-    EXPECT_EQ(conflict.has_value(), call.expectedResult.outcome == Outcome::Conflict);
+    std::string failMessage = "Failed at call " + std::to_string(callIndex);
+
+    EXPECT_EQ(conflict.has_value(), call.expectedResult.outcome == Outcome::Conflict)
+        << failMessage;
     EXPECT_THAT(assignment.range(numAssignmentsBeforeProp),
-                AssignmentMatches(call.expectedResult.propagations));
+                AssignmentMatches(call.expectedResult.propagations))
+        << failMessage;
 
     std::vector<std::size_t> newObligationsIdx;
     for (CRef obligation : newObligations) {
@@ -149,7 +188,10 @@ TEST_P(PropagationTests, TestSuite)
     }
     EXPECT_THAT(
         newObligationsIdx,
-        ::testing::UnorderedElementsAreArray(call.expectedResult.clausesMarkedForVerification));
+        ::testing::UnorderedElementsAreArray(call.expectedResult.clausesMarkedForVerification))
+        << failMessage;
+
+    ++callIndex;
   }
 }
 
@@ -163,7 +205,7 @@ INSTANTIATE_TEST_SUITE_P(, PropagationTests,
         {4, 13, ClauseVerificationState::Passive, {3_Lit}}
       },
       std::vector<PropagationCall> {
-        {10, {}, PropagationResult{Outcome::NoConflict, {}, {}}}
+        {15, {}, PropagationResult{Outcome::NoConflict, {}, {}}}
       }
     ),
 
@@ -176,8 +218,8 @@ INSTANTIATE_TEST_SUITE_P(, PropagationTests,
         {2, 13, ClauseVerificationState::VerificationPending, {2_Lit, -12_Lit}}
       },
       std::vector<PropagationCall> {
-        {10, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, 11_Lit, 12_Lit}, {}}},
-        {9, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, 11_Lit, 12_Lit}, {}}}
+        {8, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, 11_Lit, 12_Lit}, {}}},
+        {7, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, 11_Lit, 12_Lit}, {}}}
       }
     ),
 
@@ -202,8 +244,8 @@ INSTANTIATE_TEST_SUITE_P(, PropagationTests,
         {2, 13, ClauseVerificationState::Passive, {2_Lit, -12_Lit}}
       },
       std::vector<PropagationCall> {
-        {10, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, 11_Lit, 12_Lit}, {}}},
-        {9, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, 11_Lit, 12_Lit}, {}}}
+        {8, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, 11_Lit, 12_Lit}, {}}},
+        {7, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, 11_Lit, 12_Lit}, {}}}
       }
     ),
 
@@ -227,7 +269,7 @@ INSTANTIATE_TEST_SUITE_P(, PropagationTests,
         {3, 13, ClauseVerificationState::Passive, {3_Lit, -20_Lit}}
       },
       std::vector<PropagationCall> {
-        {6, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, -3_Lit, -20_Lit}, {}}}
+        {8, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, -3_Lit, -20_Lit}, {}}}
       }
     ),
 
@@ -239,7 +281,7 @@ INSTANTIATE_TEST_SUITE_P(, PropagationTests,
         {3, 13, ClauseVerificationState::Passive, {3_Lit, -2_Lit}}
       },
       std::vector<PropagationCall> {
-        {7, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit, 3_Lit}, {0, 2}}}
+        {8, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit, 3_Lit}, {0, 2}}}
       }
     ),
 
@@ -250,7 +292,7 @@ INSTANTIATE_TEST_SUITE_P(, PropagationTests,
         {4, 13, ClauseVerificationState::Passive, {-10_Lit}}
       },
       std::vector<PropagationCall> {
-        {7, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit}, {0, 1}}}
+        {8, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit}, {0, 1}}}
       }
     ),
 
@@ -261,7 +303,7 @@ INSTANTIATE_TEST_SUITE_P(, PropagationTests,
         {4, 13, ClauseVerificationState::VerificationPending, {-10_Lit}}
       },
       std::vector<PropagationCall> {
-        {7, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit}, {}}}
+        {8, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit}, {}}}
       }
     ),
 
@@ -273,9 +315,9 @@ INSTANTIATE_TEST_SUITE_P(, PropagationTests,
         {3, 13, ClauseVerificationState::Irrendundant, {-1_Lit, -2_Lit, 5_Lit}},
       },
       std::vector<PropagationCall> {
-        {7, {2_Lit, -3_Lit}, PropagationResult{Outcome::NoConflict, {1_Lit, 4_Lit, 5_Lit}, {}}},
-        {7, {2_Lit, -3_Lit}, PropagationResult{Outcome::NoConflict, {1_Lit, 4_Lit, 5_Lit}, {}}},
-        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::NoConflict, {3_Lit}, {}}}
+        {8, {2_Lit, -3_Lit}, PropagationResult{Outcome::NoConflict, {1_Lit, 4_Lit, 5_Lit}, {}}},
+        {8, {2_Lit, -3_Lit}, PropagationResult{Outcome::NoConflict, {1_Lit, 4_Lit, 5_Lit}, {}}},
+        {8, {2_Lit, -1_Lit}, PropagationResult{Outcome::NoConflict, {3_Lit}, {}}}
       }
     ),
 
@@ -317,6 +359,26 @@ INSTANTIATE_TEST_SUITE_P(, PropagationTests,
       std::vector<PropagationCall> {
         {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {3_Var, 4_Var, 5_Var, 6_Var}, {0, 1, 3, 4}}},
         {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {3_Var, 4_Var, 5_Var, 6_Var}, {}}}
+      }
+    ),
+
+    std::make_tuple(
+      "Deleted clauses are inactive",
+      std::vector<InputClause> {
+        {6, 13, ClauseVerificationState::Passive, {1_Lit, -2_Lit}},
+        {4, 10, ClauseVerificationState::Irrendundant, {1_Lit, 2_Lit, 3_Lit}},
+        {2, 7, ClauseVerificationState::Passive, {5_Lit, -2_Lit, 3_Lit}},
+        {3, 1, ClauseVerificationState::Passive, {6_Lit, -2_Lit, 3_Lit}}
+      },
+      std::vector<PropagationCall> {
+        {14, {2_Lit, -1_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}},
+        {13, {2_Lit, -1_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}},
+        {12, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {}, {0}}},
+        {10, {-1_Lit, -2_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}},
+        {9, {-1_Lit, -2_Lit}, PropagationResult{Outcome::NoConflict, {3_Lit}, {}}},
+        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {}, {}}},
+        {5, {-2_Lit, -1_Lit}, PropagationResult{Outcome::NoConflict, {3_Lit}, {}}},
+        {3, {-1_Lit, -2_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}}
       }
     )
   )
