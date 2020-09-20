@@ -13,6 +13,7 @@ nm_add_tool(incmonktests.libincmonk.unit
   verifier/AssignmentTests.cpp
   verifier/BoundedMapTests.cpp
   verifier/ClauseTests.cpp
+  verifier/PropagationTests.cpp
 )
 
 target_link_libraries(incmonktests.libincmonk.unit PRIVATE
