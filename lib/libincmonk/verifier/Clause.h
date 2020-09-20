@@ -34,6 +34,7 @@
 #include <limits>
 #include <optional>
 #include <ostream>
+#include <unordered_map>
 #include <vector>
 
 namespace incmonk::verifier {
@@ -141,6 +142,7 @@ private:
 
 auto operator<<(std::ostream& stream, Clause const& clause) -> std::ostream&;
 
+class ClauseFinder;
 
 class ClauseCollection final {
 public:
@@ -189,24 +191,26 @@ public:
     Ref m_currentRef;
   };
 
-  auto add(gsl::span<Lit const> lits, ClauseVerificationState initialState, ProofSequenceIdx addIdx)
-      -> Ref;
+  using LitSpan = gsl::span<Lit const>;
+  using DeletedClausesRng = gsl::span<Ref const>;
+
+
+  auto add(LitSpan lits, ClauseVerificationState initialState, ProofSequenceIdx addIdx) -> Ref;
   auto resolve(Ref cref) noexcept -> Clause&;
   auto resolve(Ref cref) const noexcept -> Clause const&;
-
+  auto find(LitSpan lits) const noexcept -> std::optional<Ref>;
   auto begin() const noexcept -> RefIterator;
   auto end() const noexcept -> RefIterator;
 
   void markDeleted(Ref cref, ProofSequenceIdx atIdx);
-
-  using DeletedClausesRng = gsl::span<Ref const>;
   auto getDeletedClausesOrdered() const noexcept -> DeletedClausesRng;
 
-  ClauseCollection(ClauseCollection const&) = delete;
-  auto operator=(ClauseCollection const&) -> ClauseCollection& = delete;
 
   ClauseCollection(ClauseCollection&&) noexcept;
   auto operator=(ClauseCollection &&) -> ClauseCollection&;
+
+  ClauseCollection(ClauseCollection const&) = delete;
+  auto operator=(ClauseCollection const&) -> ClauseCollection& = delete;
 
 private:
   void resize(std::size_t newSize);
@@ -217,6 +221,7 @@ private:
   std::size_t m_highWaterMark = 0;
 
   std::vector<Ref> m_deletedClauses;
+  mutable std::unique_ptr<ClauseFinder> m_clauseFinder;
 };
 
 using CRef = ClauseCollection::Ref;

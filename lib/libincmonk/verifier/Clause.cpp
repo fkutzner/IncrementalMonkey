@@ -24,8 +24,12 @@
 
 */
 
+#include <libincmonk/FastRand.h>
 #include <libincmonk/verifier/Clause.h>
 
+#include <tsl/hopscotch_set.h>
+
+#include <algorithm>
 #include <stdlib.h>
 
 namespace incmonk::verifier {
@@ -76,6 +80,97 @@ std::size_t sizeOfClauseInMem(Clause::size_type size) noexcept
   }
 }
 
+
+namespace {
+auto hashLits(gsl::span<Lit const> lits) noexcept -> uint64_t
+{
+  // TODO: replace by proper order-independent hash function
+  uint64_t result = XorShiftRandomBitGenerator{lits.size()}();
+  for (Lit lit : lits) {
+    result = result ^ XorShiftRandomBitGenerator { lit.getRawValue() }();
+  }
+  return result;
+}
+
+class CRefHash {
+public:
+  explicit CRefHash(ClauseCollection const& clauses) : m_clauses{&clauses} {}
+
+  auto operator()(CRef cref) const noexcept -> std::size_t
+  {
+    Clause const& clause = m_clauses->resolve(cref);
+    return hashLits(clause.getLiterals());
+  }
+
+  auto operator()(gsl::span<Lit const> lits) const noexcept -> std::size_t
+  {
+    return hashLits(lits);
+  }
+
+private:
+  ClauseCollection const* m_clauses;
+};
+
+class CRefEq {
+public:
+  using is_transparent = void;
+
+  explicit CRefEq(ClauseCollection const& clauses) : m_clauses{&clauses} {}
+
+  auto operator()(CRef lhs, CRef rhs) const noexcept { return lhs == rhs; }
+
+  auto operator()(gsl::span<Lit const> lhs, gsl::span<Lit const> rhs) const noexcept
+  {
+    if (lhs.size() != rhs.size()) {
+      return false;
+    }
+
+    if (&*lhs.begin() == &*rhs.begin()) {
+      return true;
+    }
+
+    return std::is_permutation(lhs.begin(), lhs.end(), rhs.begin());
+  }
+
+  auto operator()(CRef lhs, gsl::span<Lit const> rhs) const noexcept
+  {
+    return (*this)(m_clauses->resolve(lhs).getLiterals(), rhs);
+  }
+
+  auto operator()(gsl::span<Lit const> lhs, CRef rhs) const noexcept
+  {
+    return (*this)(lhs, m_clauses->resolve(rhs).getLiterals());
+  }
+
+private:
+  ClauseCollection const* m_clauses;
+};
+}
+
+class ClauseFinder {
+public:
+  ClauseFinder(ClauseCollection const& clauses) : m_refs{100, CRefHash{clauses}, CRefEq{clauses}}
+  {
+    for (CRef cref : clauses) {
+      add(cref);
+    }
+  }
+
+  auto find(gsl::span<Lit const> lits) const noexcept -> std::optional<CRef>
+  {
+    if (auto it = m_refs.find(lits); it != m_refs.end()) {
+      return *it;
+    }
+    return std::nullopt;
+  }
+
+  void add(CRef cref) { m_refs.insert(cref); }
+
+private:
+  tsl::hopscotch_set<CRef, CRefHash, CRefEq> m_refs;
+};
+
+
 ClauseCollection::ClauseCollection()
 {
   resize(1 << 20);
@@ -97,7 +192,7 @@ void ClauseCollection::resize(std::size_t newSize)
   m_memory = newMemory;
 }
 
-auto ClauseCollection::add(gsl::span<Lit const> lits,
+auto ClauseCollection::add(LitSpan lits,
                            ClauseVerificationState initialState,
                            ProofSequenceIdx addIdx) -> Ref
 {
@@ -115,6 +210,11 @@ auto ClauseCollection::add(gsl::span<Lit const> lits,
   Ref result;
   result.m_offset = m_highWaterMark / 4;
   m_highWaterMark += sizeInMem;
+
+  if (m_clauseFinder != nullptr) {
+    m_clauseFinder->add(result);
+  }
+
   return result;
 }
 
@@ -194,11 +294,20 @@ auto ClauseCollection::operator=(ClauseCollection&& rhs) -> ClauseCollection&
   this->m_currentSize = rhs.m_currentSize;
   this->m_highWaterMark = rhs.m_highWaterMark;
   this->m_deletedClauses = std::move(rhs.m_deletedClauses);
+  this->m_clauseFinder = std::move(rhs.m_clauseFinder);
 
   rhs.m_memory = nullptr;
   rhs.m_currentSize = 0;
   rhs.m_highWaterMark = 0;
   rhs.m_deletedClauses.clear();
   return *this;
+}
+
+auto ClauseCollection::find(LitSpan lits) const noexcept -> std::optional<Ref>
+{
+  if (m_clauseFinder == nullptr) {
+    m_clauseFinder = std::make_unique<ClauseFinder>(*this);
+  }
+  return m_clauseFinder->find(lits);
 }
 }

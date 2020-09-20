@@ -195,6 +195,39 @@ INSTANTIATE_TEST_SUITE_P(, ClauseCollection_IterationTests,
 );
 // clang-format on
 
+
+TEST(ClauseCollection_FindTests, WhenClauseDBIsEmptyNoClauseIsFound)
+{
+  ClauseCollection underTest;
+  EXPECT_THAT(underTest.find({}), Eq(std::nullopt));
+  EXPECT_THAT(underTest.find(std::vector<Lit>{10_Lit}), Eq(std::nullopt));
+}
+
+TEST(ClauseCollection_FindTests, WhenClauseDBContainsSingleClauseItIsReturnedByFind)
+{
+  ClauseCollection underTest;
+  CRef clause =
+      underTest.add(std::vector<Lit>{10_Lit, 20_Lit}, ClauseVerificationState::Irrendundant, 0);
+  EXPECT_THAT(underTest.find(std::vector<Lit>{10_Lit}), Eq(std::nullopt));
+  EXPECT_THAT(underTest.find(std::vector<Lit>{20_Lit, 10_Lit}), Eq(clause));
+  EXPECT_THAT(underTest.find(std::vector<Lit>{10_Lit, 20_Lit}), Eq(clause));
+}
+
+TEST(ClauseCollection_FindTests, WhenAddIsCalledAfterFind_NewClausesCanBeFound)
+{
+  ClauseCollection underTest;
+  auto const irredundant = ClauseVerificationState::Irrendundant;
+  CRef clause1 = underTest.add(std::vector<Lit>{10_Lit, 20_Lit}, irredundant, 0);
+  EXPECT_THAT(underTest.find(std::vector<Lit>{10_Lit}), Eq(std::nullopt));
+  CRef clause2 = underTest.add(std::vector<Lit>{1_Lit, -20_Lit, 5_Lit}, irredundant, 0);
+
+  EXPECT_THAT(underTest.find(std::vector<Lit>{20_Lit, 10_Lit}), Eq(clause1));
+  EXPECT_THAT(underTest.find(std::vector<Lit>{1_Lit, -20_Lit, 5_Lit}), Eq(clause2));
+  EXPECT_THAT(underTest.find(std::vector<Lit>{10_Lit, 20_Lit, 5_Lit}), Eq(std::nullopt));
+  EXPECT_THAT(underTest.find(std::vector<Lit>{-20_Lit, 5_Lit, 1_Lit}), Eq(clause2));
+}
+
+
 TEST(ClauseRefIteratorTests, DefaultConstructedIteratorsAreEq)
 {
   ClauseCollection::RefIterator iter1{};
