@@ -13,3 +13,6 @@
 [submodule "deps/tomlplusplus/tomlplusplus"]
 	path = deps/tomlplusplus/tomlplusplus
 	url = https://github.com/marzer/tomlplusplus
+[submodule "deps/hopscotch-map"]
+	path = deps/hopscotch-map
+	url = https://github.com/Tessil/hopscotch-map
