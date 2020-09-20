@@ -56,6 +56,7 @@ struct Key<Var> {
   constexpr static auto get(Var const& item) -> std::size_t;
 };
 
+auto operator""_Var(unsigned long long cnfValue) -> Var;
 auto operator<<(std::ostream& stream, Var var) -> std::ostream&;
 
 
@@ -177,6 +178,7 @@ public:
     std::size_t m_offset = 0;
     friend class ClauseCollection;
     friend class RefIterator;
+    friend struct std::hash<Ref>;
   };
 
   class RefIterator {

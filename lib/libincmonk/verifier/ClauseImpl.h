@@ -30,6 +30,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <functional>
 #include <gsl/span>
 #include <iterator>
 #include <limits>
@@ -60,6 +61,11 @@ constexpr auto Var::operator==(Var rhs) const -> bool
 constexpr auto Var::operator!=(Var rhs) const -> bool
 {
   return m_rawValue != rhs.m_rawValue;
+}
+
+inline auto operator""_Var(unsigned long long cnfValue) -> Var
+{
+  return Var{static_cast<uint32_t>(cnfValue)};
 }
 
 constexpr auto Key<Var>::get(Var const& item) -> std::size_t
@@ -113,7 +119,6 @@ constexpr auto Key<Lit>::get(Lit const& item) -> std::size_t
 {
   return item.getRawValue();
 }
-
 
 inline auto Clause::operator[](size_type idx) noexcept -> Lit&
 {
@@ -285,4 +290,30 @@ inline auto ClauseCollection::RefIterator::operator!=(RefIterator const& rhs) co
   return !(*this == rhs);
 }
 
+}
+
+namespace std {
+template <>
+struct hash<incmonk::verifier::Lit> {
+  auto operator()(incmonk::verifier::Lit lit) const noexcept -> std::size_t
+  {
+    return std::hash<uint32_t>{}(lit.getRawValue());
+  }
+};
+
+template <>
+struct hash<incmonk::verifier::Var> {
+  auto operator()(incmonk::verifier::Var var) const noexcept -> std::size_t
+  {
+    return std::hash<uint32_t>{}(var.getRawValue());
+  }
+};
+
+template <>
+struct hash<incmonk::verifier::ClauseCollection::Ref> {
+  auto operator()(incmonk::verifier::ClauseCollection::Ref ref) const noexcept -> std::size_t
+  {
+    return std::hash<std::size_t>{}(ref.m_offset);
+  }
+};
 }
