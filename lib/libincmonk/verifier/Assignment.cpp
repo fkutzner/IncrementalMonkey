@@ -27,6 +27,27 @@
 #include <libincmonk/verifier/Assignment.h>
 
 namespace incmonk::verifier {
+
+Assignment::Range::Range(Assignment::const_iterator start, Assignment::const_iterator stop) noexcept
+  : m_start(start), m_stop(stop)
+{
+}
+
+auto Assignment::Range::begin() const noexcept -> Assignment::const_iterator
+{
+  return m_start;
+}
+
+auto Assignment::Range::end() const noexcept -> Assignment::const_iterator
+{
+  return m_stop;
+}
+
+auto Assignment::Range::size() const noexcept -> Assignment::size_type
+{
+  return m_stop - m_start;
+}
+
 Assignment::Assignment(Lit maxLit)
   : m_assignmentMap{maxLit.getVar(), t_indet}
   , m_assignmentStack{}

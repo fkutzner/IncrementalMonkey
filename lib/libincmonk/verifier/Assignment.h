@@ -30,24 +30,36 @@
 #include <libincmonk/verifier/BoundedMap.h>
 #include <libincmonk/verifier/Clause.h>
 
-#include <gsl/span>
-
 #include <cassert>
 #include <vector>
 
 namespace incmonk::verifier {
+
 class Assignment {
 private:
   using AssignmentStack = std::vector<Lit>;
 
 public:
   using size_type = AssignmentStack::size_type;
+  using const_iterator = AssignmentStack::const_iterator;
+
+  class Range {
+  public:
+    Range(Assignment::const_iterator start, Assignment::const_iterator stop) noexcept;
+    auto begin() const noexcept -> Assignment::const_iterator;
+    auto end() const noexcept -> Assignment::const_iterator;
+    auto size() const noexcept -> size_type;
+
+  private:
+    const_iterator m_start;
+    const_iterator m_stop;
+  };
 
   explicit Assignment(Lit maxLit);
 
   void add(Lit lit) noexcept;
   auto get(Lit lit) const noexcept -> TBool;
-  auto range(size_type start = 0) const noexcept -> gsl::span<Lit const>;
+  auto range(size_type start = 0) const noexcept -> Range;
   void clear(size_type start = 0) noexcept;
   auto size() const noexcept -> size_type;
   auto empty() const noexcept -> bool;
@@ -87,11 +99,14 @@ inline auto Assignment::get(Lit lit) const noexcept -> TBool
   return lit.isPositive() ? varAssignment : !varAssignment;
 }
 
-inline auto Assignment::range(size_type start) const noexcept -> gsl::span<Lit const>
+inline auto Assignment::range(size_type start) const noexcept -> Range
 {
+  auto const begin = m_assignmentStack.begin();
+  auto const end = m_assignmentStack.begin() + m_numAssignments;
+
   if (start >= m_numAssignments) {
-    return gsl::span<Lit const>{};
+    return Range{end, end};
   }
-  return gsl::span<Lit const>{m_assignmentStack}.subspan(start, m_numAssignments - start);
+  return Range{begin + start, end};
 }
 }
