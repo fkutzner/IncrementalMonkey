@@ -226,12 +226,6 @@ TEST(ClauseTests, WhenClauseStateIsSet_itsValueChanges)
   checkClauseStateStore(clause);
 }
 
-TEST(BinaryClauseTests, WhenClauseStateIsSet_itsValueChanges)
-{
-  BinaryClause clause{15_Lit, ClauseVerificationState::Irrendundant, 1};
-  checkClauseStateStore(clause);
-}
-
 TEST(LitTests, WhenLitIsNegative_thenKeyMatchesItToAdjacentPositiveValue)
 {
   Lit input = 5_Lit;

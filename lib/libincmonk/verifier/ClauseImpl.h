@@ -187,53 +187,6 @@ inline Clause::Clause(size_type size,
   setState(initialState);
 }
 
-inline BinaryClause::BinaryClause(Lit other,
-                                  ClauseVerificationState initialState,
-                                  ProofSequenceIdx addIdx)
-  : m_pointOfAdd{addIdx}
-  , m_pointOfDel{std::numeric_limits<ProofSequenceIdx>::max()}
-  , m_otherLit{other}
-{
-  setState(initialState);
-}
-
-inline void BinaryClause::setState(ClauseVerificationState state) noexcept
-{
-  uint8_t rawState = static_cast<uint8_t>(state);
-  m_flags = (m_flags & 0xFFFFFF00) | rawState;
-}
-
-inline auto BinaryClause::getState() const noexcept -> ClauseVerificationState
-{
-  return static_cast<ClauseVerificationState>(m_flags & 3);
-}
-
-inline auto BinaryClause::getOtherLit() noexcept -> Lit&
-{
-  return m_otherLit;
-}
-
-inline auto BinaryClause::getOtherLit() const noexcept -> Lit const&
-{
-  return m_otherLit;
-}
-
-inline auto BinaryClause::getAddIdx() const noexcept -> ProofSequenceIdx
-{
-  return m_pointOfAdd;
-}
-
-inline auto BinaryClause::getDelIdx() const noexcept -> ProofSequenceIdx
-{
-  return m_pointOfDel;
-}
-
-inline void BinaryClause::setDelIdx(ProofSequenceIdx idx) noexcept
-{
-  m_pointOfDel = idx;
-}
-
-
 inline auto ClauseCollection::Ref::operator==(Ref rhs) const noexcept -> bool
 {
   return m_offset == rhs.m_offset;

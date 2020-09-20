@@ -61,13 +61,6 @@ auto operator<<(std::ostream& stream, Clause const& clause) -> std::ostream&
   return stream;
 }
 
-auto operator<<(std::ostream& stream, BinaryClause const& clause) -> std::ostream&
-{
-  stream << "(otherLit= " << clause.getOtherLit() << ", delIdx=" << clause.getDelIdx()
-         << ", state=" << static_cast<uint32_t>(clause.getState()) << ")";
-  return stream;
-}
-
 auto maxLit(Var var) noexcept -> Lit
 {
   return Lit{var, true};

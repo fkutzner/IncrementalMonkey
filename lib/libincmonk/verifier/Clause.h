@@ -141,29 +141,6 @@ private:
 
 auto operator<<(std::ostream& stream, Clause const& clause) -> std::ostream&;
 
-class BinaryClause final {
-public:
-  BinaryClause(Lit other, ClauseVerificationState initialState, ProofSequenceIdx addIdx);
-
-  void setState(ClauseVerificationState state) noexcept;
-  auto getState() const noexcept -> ClauseVerificationState;
-
-  auto getOtherLit() noexcept -> Lit&;
-  auto getOtherLit() const noexcept -> Lit const&;
-
-  auto getAddIdx() const noexcept -> ProofSequenceIdx;
-  auto getDelIdx() const noexcept -> ProofSequenceIdx;
-  void setDelIdx(ProofSequenceIdx idx) noexcept;
-
-private:
-  uint32_t m_flags = 0;
-  ProofSequenceIdx m_pointOfAdd;
-  ProofSequenceIdx m_pointOfDel;
-  Lit m_otherLit;
-};
-
-auto operator<<(std::ostream& stream, BinaryClause const& clause) -> std::ostream&;
-
 
 class ClauseCollection final {
 public:
