@@ -63,6 +63,16 @@ constexpr auto Var::operator!=(Var rhs) const -> bool
   return m_rawValue != rhs.m_rawValue;
 }
 
+constexpr auto Var::operator<(Var rhs) const -> bool
+{
+  return m_rawValue < rhs.m_rawValue;
+}
+
+constexpr auto Var::operator>(Var rhs) const -> bool
+{
+  return m_rawValue > rhs.m_rawValue;
+}
+
 inline auto operator""_Var(unsigned long long cnfValue) -> Var
 {
   return Var{static_cast<uint32_t>(cnfValue)};
@@ -107,6 +117,16 @@ constexpr auto Lit::operator==(Lit rhs) const -> bool
 constexpr auto Lit::operator!=(Lit rhs) const -> bool
 {
   return m_rawValue != rhs.m_rawValue;
+}
+
+constexpr auto Lit::operator<(Lit rhs) const -> bool
+{
+  return m_rawValue < rhs.m_rawValue;
+}
+
+constexpr auto Lit::operator>(Lit rhs) const -> bool
+{
+  return m_rawValue > rhs.m_rawValue;
 }
 
 inline auto operator""_Lit(unsigned long long cnfValue) -> Lit

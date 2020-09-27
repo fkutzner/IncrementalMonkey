@@ -183,8 +183,7 @@ public:
   void add(CRef cref, gsl::span<Lit const> lits)
   {
     for (Lit lit : lits) {
-      // TODO: Lit, Var comparison operators
-      if (lit.getVar().getRawValue() > m_maxLit.getVar().getRawValue()) {
+      if (lit.getVar() > m_maxLit.getVar()) {
         m_maxLit = maxLit(lit.getVar());
         m_occurrences.increaseSizeTo(m_maxLit);
       }
@@ -239,7 +238,9 @@ auto ClauseCollection::add(LitSpan lits,
 
   Clause* resultClause = new (m_memory + m_highWaterMark) Clause(numLits, initialState, addIdx);
   for (Clause::size_type idx = 0; idx < numLits; ++idx) {
-    (*resultClause)[idx] = lits[idx];
+    Lit const toAdd = lits[idx];
+    (*resultClause)[idx] = toAdd;
+    m_maxVar = std::max(toAdd.getVar(), m_maxVar);
   }
 
   Ref result;
@@ -356,5 +357,10 @@ auto ClauseCollection::getOccurrences(Lit lit) const noexcept -> OccRng
     m_clauseOccurrences = std::make_unique<ClauseOccurrences>(*this);
   }
   return m_clauseOccurrences->get(lit);
+}
+
+auto ClauseCollection::getMaxVar() const noexcept -> Var
+{
+  return m_maxVar;
 }
 }

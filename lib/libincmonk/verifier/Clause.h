@@ -49,6 +49,8 @@ public:
 
   constexpr auto operator==(Var rhs) const -> bool;
   constexpr auto operator!=(Var rhs) const -> bool;
+  constexpr auto operator<(Var rhs) const -> bool;
+  constexpr auto operator>(Var rhs) const -> bool;
 
 private:
   uint32_t m_rawValue;
@@ -75,6 +77,8 @@ public:
 
   constexpr auto operator==(Lit rhs) const -> bool;
   constexpr auto operator!=(Lit rhs) const -> bool;
+  constexpr auto operator<(Lit rhs) const -> bool;
+  constexpr auto operator>(Lit rhs) const -> bool;
 
 private:
   uint32_t m_rawValue;
@@ -210,6 +214,8 @@ public:
   void markDeleted(Ref cref, ProofSequenceIdx atIdx);
   auto getDeletedClausesOrdered() const noexcept -> DeletedClausesRng;
 
+  auto getMaxVar() const noexcept -> Var;
+
 
   ClauseCollection(ClauseCollection&&) noexcept;
   auto operator=(ClauseCollection &&) -> ClauseCollection&;
@@ -224,6 +230,8 @@ private:
   char* m_memory = nullptr;
   std::size_t m_currentSize = 0;
   std::size_t m_highWaterMark = 0;
+
+  Var m_maxVar = 0_Var;
 
   std::vector<Ref> m_deletedClauses;
   mutable std::unique_ptr<ClauseFinder> m_clauseFinder;

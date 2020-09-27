@@ -147,6 +147,30 @@ TEST_P(ClauseCollection_AllocationTests, ClauseRefsRemainValidAfterExtraLargeRes
   insertClausesAndCheck(underTest, inputClauses);
 }
 
+TEST_P(ClauseCollection_AllocationTests, MaxVarIsUpdatedOnAllocation)
+{
+  ClauseCollection underTest;
+
+  // clang-format off
+  std::vector<std::vector<Lit>> inputClauses = {
+      {1_Lit, -4_Lit, -8_Lit, 9_Lit},
+      {},
+      {2_Lit, 7_Lit, 11_Lit},
+      GetParam()
+  };
+  // clang-format on
+
+  Lit maxSeenLit = -0_Lit;
+  for (auto& clause : inputClauses) {
+    if (!clause.empty()) {
+      maxSeenLit = std::max(maxSeenLit, *std::max_element(clause.begin(), clause.end()));
+    }
+    underTest.add(clause, ClauseVerificationState::Irrendundant, 0);
+  }
+
+  EXPECT_THAT(maxSeenLit.getVar(), underTest.getMaxVar());
+}
+
 // clang-format off
 INSTANTIATE_TEST_SUITE_P(, ClauseCollection_AllocationTests,
   ::testing::Values(
