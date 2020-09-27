@@ -45,7 +45,7 @@ public:
 
   Assignment createAssignmentUnderTest()
   {
-    Assignment underTest{10_Lit};
+    Assignment underTest{10_Var};
     for (Lit input : GetParam()) {
       underTest.add(input);
     }
@@ -86,14 +86,14 @@ INSTANTIATE_TEST_SUITE_P(, AssignmentTests_Add,
 
 TEST(AssignmentTests, WhenLitIsNotAssigned_ItIsIndet)
 {
-  Assignment underTest{10_Lit};
+  Assignment underTest{10_Var};
   EXPECT_EQ(underTest.get(5_Lit), t_indet);
   EXPECT_EQ(underTest.get(-5_Lit), t_indet);
 }
 
 TEST(AssignmentTests, WhenAssignmentIsCleared_LitsAreIndet)
 {
-  Assignment underTest{10_Lit};
+  Assignment underTest{10_Var};
   underTest.add(-7_Lit);
   underTest.add(3_Lit);
   ASSERT_THAT(underTest.get(7_Lit), t_false);
@@ -107,7 +107,7 @@ TEST(AssignmentTests, WhenAssignmentIsCleared_LitsAreIndet)
 
 TEST(AssignmentTests, WhenAssignmentIsPartiallyCleared_NonClearedAssignmentsRemain)
 {
-  Assignment underTest{10_Lit};
+  Assignment underTest{10_Var};
   underTest.add(-7_Lit);
   underTest.add(3_Lit);
   underTest.add(5_Lit);
@@ -135,7 +135,7 @@ public:
 
 TEST_P(AssignmentTests_Range, checkExpectedRange)
 {
-  Assignment underTest{-100_Lit};
+  Assignment underTest{100_Var};
   for (Lit lit : std::get<0>(GetParam())) {
     underTest.add(lit);
   }
@@ -161,8 +161,8 @@ INSTANTIATE_TEST_SUITE_P(, AssignmentTests_Range,
 
 TEST(AssignmentTests, AssignmentCanBeEnlarged)
 {
-  Assignment underTest{10_Lit};
-  underTest.increaseSizeTo(-20_Lit);
+  Assignment underTest{10_Var};
+  underTest.increaseSizeTo(20_Var);
   underTest.add(20_Lit);
   EXPECT_THAT(underTest.get(20_Lit), t_true);
 }

@@ -55,7 +55,7 @@ public:
     const_iterator m_stop;
   };
 
-  explicit Assignment(Lit maxLit);
+  explicit Assignment(Var maxVar);
 
   void add(Lit lit) noexcept;
   void add(gsl::span<Lit const> lits) noexcept;
@@ -65,7 +65,7 @@ public:
   auto size() const noexcept -> size_type;
   auto empty() const noexcept -> bool;
 
-  void increaseSizeTo(Lit newMaxLit);
+  void increaseSizeTo(Var newMaxVar);
 
   Assignment(Assignment const& rhs) noexcept = delete;
   Assignment(Assignment&& rhs) noexcept = default;

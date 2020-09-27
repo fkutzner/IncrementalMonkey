@@ -173,7 +173,7 @@ private:
 
 class ClauseOccurrences {
 public:
-  ClauseOccurrences(ClauseCollection const& clauses) : m_occurrences{1_Lit}, m_maxLit{1_Lit}
+  ClauseOccurrences(ClauseCollection const& clauses) : m_occurrences{1_Lit}, m_maxVar{1_Var}
   {
     for (CRef cref : clauses) {
       add(cref, clauses.resolve(cref).getLiterals());
@@ -183,9 +183,9 @@ public:
   void add(CRef cref, gsl::span<Lit const> lits)
   {
     for (Lit lit : lits) {
-      if (lit.getVar() > m_maxLit.getVar()) {
-        m_maxLit = maxLit(lit.getVar());
-        m_occurrences.increaseSizeTo(m_maxLit);
+      if (lit.getVar() > m_maxVar) {
+        m_maxVar = lit.getVar();
+        m_occurrences.increaseSizeTo(maxLit(m_maxVar));
       }
       m_occurrences[lit].push_back(cref);
     }
@@ -193,7 +193,7 @@ public:
 
   auto get(Lit lit) const noexcept -> gsl::span<CRef const>
   {
-    if (lit.getVar().getRawValue() > m_maxLit.getVar().getRawValue()) {
+    if (lit.getVar() > m_maxVar) {
       return {};
     }
     return m_occurrences[lit];
@@ -201,7 +201,7 @@ public:
 
 private:
   BoundedMap<Lit, std::vector<CRef>> m_occurrences;
-  Lit m_maxLit;
+  Var m_maxVar;
 };
 
 

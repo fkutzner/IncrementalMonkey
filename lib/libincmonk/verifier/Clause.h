@@ -50,7 +50,9 @@ public:
   constexpr auto operator==(Var rhs) const -> bool;
   constexpr auto operator!=(Var rhs) const -> bool;
   constexpr auto operator<(Var rhs) const -> bool;
+  constexpr auto operator<=(Var rhs) const -> bool;
   constexpr auto operator>(Var rhs) const -> bool;
+  constexpr auto operator>=(Var rhs) const -> bool;
 
 private:
   uint32_t m_rawValue;
@@ -78,7 +80,9 @@ public:
   constexpr auto operator==(Lit rhs) const -> bool;
   constexpr auto operator!=(Lit rhs) const -> bool;
   constexpr auto operator<(Lit rhs) const -> bool;
+  constexpr auto operator<=(Lit rhs) const -> bool;
   constexpr auto operator>(Lit rhs) const -> bool;
+  constexpr auto operator>=(Lit rhs) const -> bool;
 
 private:
   uint32_t m_rawValue;

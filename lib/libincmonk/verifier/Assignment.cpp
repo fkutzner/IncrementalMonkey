@@ -48,11 +48,8 @@ auto Assignment::Range::size() const noexcept -> Assignment::size_type
   return m_stop - m_start;
 }
 
-Assignment::Assignment(Lit maxLit)
-  : m_assignmentMap{maxLit.getVar(), t_indet}
-  , m_assignmentStack{}
-  , m_numAssignments{0}
-  , m_maxVar{maxLit.getVar()}
+Assignment::Assignment(Var maxVar)
+  : m_assignmentMap{maxVar, t_indet}, m_assignmentStack{}, m_numAssignments{0}, m_maxVar{maxVar}
 {
   m_assignmentStack.resize(m_maxVar.getRawValue() + 1);
 }
@@ -79,12 +76,11 @@ auto Assignment::empty() const noexcept -> bool
   return m_numAssignments == 0;
 }
 
-void Assignment::increaseSizeTo(Lit newMaxLit)
+void Assignment::increaseSizeTo(Var newMaxVar)
 {
-  newMaxLit = maxLit(newMaxLit.getVar());
-  assert(newMaxLit.getVar().getRawValue() >= m_maxVar.getRawValue());
-  m_assignmentStack.resize(newMaxLit.getVar().getRawValue() + 1);
-  m_assignmentMap.increaseSizeTo(newMaxLit.getVar());
-  m_maxVar = newMaxLit.getVar();
+  assert(newMaxVar >= m_maxVar);
+  m_assignmentStack.resize(newMaxVar.getRawValue() + 1);
+  m_assignmentMap.increaseSizeTo(newMaxVar);
+  m_maxVar = newMaxVar;
 }
 }

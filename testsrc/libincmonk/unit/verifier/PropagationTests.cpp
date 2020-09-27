@@ -173,9 +173,9 @@ TEST_P(PropagationTests, TestSuite)
   std::vector<PropagationCall> calls = std::get<2>(GetParam());
 
   auto [clauseIndices, clauses] = createClauseCollection(inputClauses);
-  Lit const maxLit = 100_Lit;
-  Assignment assignment{maxLit};
-  Propagator underTest{clauses, assignment, maxLit};
+  Var const maxVar = 100_Var;
+  Assignment assignment{maxVar};
+  Propagator underTest{clauses, assignment, maxVar};
 
   std::size_t callIndex = 0;
   for (PropagationCall const& call : calls) {

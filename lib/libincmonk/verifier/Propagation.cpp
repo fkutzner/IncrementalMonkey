@@ -38,11 +38,11 @@ auto isFromFuture(Watcher const& watcher, ProofSequenceIdx currentIndex) -> bool
 }
 }
 
-Propagator::Propagator(ClauseCollection& clauses, Assignment& assignment, Lit maxLit)
+Propagator::Propagator(ClauseCollection& clauses, Assignment& assignment, Var maxVar)
   : m_clauses{clauses}
   , m_deletedClauses{clauses.getDeletedClausesOrdered()}
   , m_assignment{assignment}
-  , m_watchers{maxLit}
+  , m_watchers{maxLit(maxVar)}
   , m_proofSequenceIndex{std::numeric_limits<ProofSequenceIdx>::max()}
 {
   for (CRef cref : clauses) {

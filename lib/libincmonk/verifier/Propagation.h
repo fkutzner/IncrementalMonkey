@@ -47,7 +47,7 @@ class Propagator {
 public:
   using CRefVec = std::vector<CRef>;
 
-  explicit Propagator(ClauseCollection& clauses, Assignment& assignment, Lit maxLit);
+  explicit Propagator(ClauseCollection& clauses, Assignment& assignment, Var maxVar);
   auto propagateToFixpoint(Assignment::const_iterator start,
                            ProofSequenceIdx curProofSeqIdx,
                            CRefVec& newObligations) -> OptCRef;
