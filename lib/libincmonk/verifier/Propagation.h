@@ -47,10 +47,13 @@ class Propagator {
 public:
   using CRefVec = std::vector<CRef>;
 
-  explicit Propagator(ClauseCollection& clauses, Assignment& assignment, Var maxVar);
+  Propagator(ClauseCollection& clauses, Assignment& assignment, Var maxVar);
   auto propagateToFixpoint(Assignment::const_iterator start,
                            ProofSequenceIdx curProofSeqIdx,
                            CRefVec& newObligations) -> OptCRef;
+
+  void activateUnary(CRef unary);
+  void dismissUnary(CRef unary);
 
   Propagator(Propagator const&) = delete;
   auto operator=(Propagator const&) -> Propagator& = delete;
@@ -74,14 +77,13 @@ private:
 
   struct WatcherLists {
     WatcherLists() = default;
-
-    std::optional<Watcher> unaryWatch;
     WatcherList coreBinaries;
     WatcherList core;
     WatcherList farBinaries;
     WatcherList far;
 
     std::optional<CRef> assignmentReason;
+    bool isUnaryReason = false;
   };
 
   ClauseCollection& m_clauses;

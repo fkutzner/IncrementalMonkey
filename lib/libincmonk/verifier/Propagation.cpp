@@ -58,10 +58,7 @@ void Propagator::addClause(CRef cref, Clause const& clause)
 {
   bool const isUnary = (clause.size() == 1);
 
-  if (isUnary) {
-    m_watchers[-clause[0]].unaryWatch = makeWatcher(cref, clause, WatcherPos::First);
-  }
-  else {
+  if (!isUnary) {
     bool const isBinary = (clause.size() == 2);
     bool const isFar = (clause.getState() == ClauseVerificationState::Passive);
     getWatcherList(clause[0], isBinary, isFar)
@@ -106,7 +103,9 @@ auto Propagator::propagateToFixpoint(Assignment::const_iterator start,
   resurrectDeletedClauses();
 
   for (Lit l : m_assignment.range()) {
-    m_watchers[l].assignmentReason = std::nullopt;
+    if (!m_watchers[l].isUnaryReason) {
+      m_watchers[l].assignmentReason = std::nullopt;
+    }
   }
 
   Assignment::const_iterator cursor = start;
@@ -121,18 +120,23 @@ auto Propagator::propagateToFixpoint(Assignment::const_iterator start,
   return std::nullopt;
 }
 
+void Propagator::activateUnary(CRef unary)
+{
+  Lit unaryLit = m_clauses.resolve(unary)[0];
+  m_watchers[unaryLit].assignmentReason = unary;
+  m_watchers[unaryLit].isUnaryReason = true;
+}
+
+void Propagator::dismissUnary(CRef unary)
+{
+  Lit unaryLit = m_clauses.resolve(unary)[0];
+  m_watchers[unaryLit].assignmentReason = std::nullopt;
+  m_watchers[unaryLit].isUnaryReason = false;
+}
+
 auto Propagator::propagate(Lit newAssign) -> OptCRef
 {
   WatcherLists& watchers = m_watchers[newAssign];
-
-  if (watchers.unaryWatch.has_value()) {
-    if (isFromFuture(*watchers.unaryWatch, m_proofSequenceIndex)) {
-      watchers.unaryWatch = std::nullopt;
-    }
-    else {
-      return watchers.unaryWatch->clause;
-    }
-  }
 
   if (OptCRef conflict = propagateBinaries(watchers.coreBinaries); conflict.has_value()) {
     return conflict;
