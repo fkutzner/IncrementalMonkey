@@ -27,17 +27,15 @@
 #include <libincmonk/FuzzTraceExec.h>
 
 #include <libincmonk/FuzzTrace.h>
-#include <libincmonk/IPASIRSolver.h>
 
+#include "FakeIPASIRSolver.h"
 #include "FileUtils.h"
 
 #include <gmock/gmock.h>
+#include <gsl/gsl_util>
 #include <gtest/gtest.h>
 
-#include <gsl/gsl_util>
-
 #include <filesystem>
-#include <unordered_set>
 #include <vector>
 
 using ::testing::Eq;
@@ -45,81 +43,6 @@ using ::testing::Eq;
 namespace fs = std::filesystem;
 
 namespace incmonk {
-
-struct FakeIPASIRResult {
-  IPASIRSolver::Result result;
-
-  // if result is SAT, modelOrFailed contains the model. If result is UNSAT,
-  // modelOrFailed contains the failed assertions. Otherwise, it is ignored.
-  std::vector<CNFLit> modelOrFailed;
-};
-
-namespace {
-class FakeIPASIRSolver : public IPASIRSolver {
-public:
-  FakeIPASIRSolver(std::vector<FakeIPASIRResult> const& fakedResults)
-  {
-    m_fakedResults.assign(fakedResults.rbegin(), fakedResults.rend());
-  }
-
-
-  auto solve() -> Result override
-  {
-    assert(!m_fakedResults.empty());
-    FakeIPASIRResult const& resultInfo = m_fakedResults.back();
-    m_lastResult = resultInfo.result;
-
-    m_model.clear();
-    m_failed.clear();
-    if (m_lastResult == Result::SAT) {
-      m_model.insert(resultInfo.modelOrFailed.begin(), resultInfo.modelOrFailed.end());
-    }
-    else if (m_lastResult == Result::UNSAT) {
-      m_failed.insert(resultInfo.modelOrFailed.begin(), resultInfo.modelOrFailed.end());
-    }
-
-    m_fakedResults.pop_back();
-    return m_lastResult;
-  }
-
-  auto getLastSolveResult() const noexcept -> Result override { return m_lastResult; }
-
-  void addClause(CNFClause const&) override {}
-  void assume(std::vector<CNFLit> const&) override {}
-  void configure(uint64_t) override {}
-
-  auto getValue(CNFLit lit) const noexcept -> TBool override
-  {
-    if (m_model.find(lit) != m_model.end()) {
-      return t_true;
-    }
-    if (m_model.find(-lit) != m_model.end()) {
-      return t_false;
-    }
-    return t_indet;
-  }
-
-  auto isFailed(CNFLit lit) const noexcept -> bool override
-  {
-    return m_failed.find(lit) != m_failed.end();
-  }
-
-  void reinitializeWithHavoc(uint64_t) noexcept override {}
-
-  void havoc(uint64_t) noexcept override {}
-
-  virtual ~FakeIPASIRSolver() = default;
-
-private:
-  std::vector<FakeIPASIRResult> m_fakedResults;
-
-  std::unordered_set<CNFLit> m_model;
-  std::unordered_set<CNFLit> m_failed;
-
-
-  Result m_lastResult = Result::UNKNOWN;
-};
-}
 
 // clang-format off
 using FuzzTraceExecTests_executeTrace_param = std::tuple<

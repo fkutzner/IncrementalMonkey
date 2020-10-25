@@ -33,19 +33,39 @@
 #include <stdlib.h>
 
 namespace incmonk {
+
+// The fork()ed processes need to return EXIT_FAILURE to ensure that
+// no further tests are executed in the test suite.
+namespace {
+int const childProcessRetVal = EXIT_FAILURE;
+}
+
 TEST(ForkTests, WhenFunctionExecutionSucceeds_ReturnValueIsPassedBack)
 {
   int expected = 12345;
-  std::optional<uint64_t> result = syncExecInFork([&expected]() { return expected; }, EXIT_FAILURE);
+  std::optional<uint64_t> result =
+      syncExecInFork([&expected]() { return expected; }, childProcessRetVal);
   ASSERT_TRUE(result.has_value());
   EXPECT_THAT(*result, ::testing::Eq(expected));
 }
 
+TEST(ForkTests, WhenFnDoesNotExceedTimeout_ItsReturnValueIsReturned)
+{
+  auto result = syncExecInFork(
+      []() -> uint64_t {
+        sleep(1);
+        return 50;
+      },
+      childProcessRetVal,
+      std::chrono::milliseconds{1500});
+  ASSERT_TRUE(result.has_value());
+  EXPECT_THAT(*result, ::testing::Eq(50));
+}
+
 TEST(ForkTests, WhenChildExitsPrematurely_ChildExecutionFailureIsThrown)
 {
-  // The fork()ed process needs to return EXIT_FAILURE to ensure that
-  // no further tests are executed in the test suite.
-  EXPECT_THROW(syncExecInFork([]() -> uint64_t { exit(1); }, EXIT_FAILURE), ChildExecutionFailure);
+  EXPECT_THROW(syncExecInFork([]() -> uint64_t { exit(1); }, childProcessRetVal),
+               ChildExecutionFailure);
 }
 
 TEST(ForkTests, WhenChildSegfaults_ChildExecutionFailureIsThrown)
@@ -55,7 +75,7 @@ TEST(ForkTests, WhenChildSegfaults_ChildExecutionFailureIsThrown)
                      raise(SIGSEGV);
                      return 0;
                    },
-                   EXIT_FAILURE),
+                   childProcessRetVal),
                ChildExecutionFailure);
 }
 
@@ -67,7 +87,7 @@ TEST(ForkTests, WhenFnThrows_ChildExecutionFailureIsThrown)
                      testing::GTEST_FLAG(catch_exceptions) = false;
                      throw 0;
                    },
-                   EXIT_FAILURE),
+                   childProcessRetVal),
                ChildExecutionFailure);
 }
 
@@ -78,24 +98,10 @@ TEST(ForkTests, WhenFnExceedsTimeout_NothingIsReturned)
         sleep(100);
         return 0;
       },
-      EXIT_FAILURE,
+      childProcessRetVal,
       std::chrono::milliseconds{100});
   EXPECT_FALSE(result.has_value());
 }
-
-TEST(ForkTests, WhenFnDoesNotExceedTimeout_ItsReturnValueIsReturned)
-{
-  auto result = syncExecInFork(
-      []() -> uint64_t {
-        sleep(1);
-        return 50;
-      },
-      EXIT_FAILURE,
-      std::chrono::milliseconds{1500});
-  ASSERT_TRUE(result.has_value());
-  EXPECT_THAT(*result, ::testing::Eq(50));
-}
-
 
 TEST(ForkTests, WhenChildExitsPrematurelyBeforeTimeout_ChildExecutionFailureIsThrown)
 {
@@ -104,7 +110,7 @@ TEST(ForkTests, WhenChildExitsPrematurelyBeforeTimeout_ChildExecutionFailureIsTh
                      sleep(1);
                      exit(1);
                    },
-                   EXIT_FAILURE,
+                   childProcessRetVal,
                    std::chrono::milliseconds{100000}),
                ChildExecutionFailure);
 }
@@ -117,7 +123,7 @@ TEST(ForkTests, WhenChildSegfaultsBeforeTimeout_ChildExecutionFailureIsThrown)
                      raise(SIGSEGV);
                      return 0;
                    },
-                   EXIT_FAILURE,
+                   childProcessRetVal,
                    std::chrono::milliseconds{100000}),
                ChildExecutionFailure);
 }
@@ -131,7 +137,7 @@ TEST(ForkTests, WhenFnThrowsBeforeTimeout_ChildExecutionFailureIsThrown)
                      testing::GTEST_FLAG(catch_exceptions) = false;
                      throw 0;
                    },
-                   EXIT_FAILURE,
+                   childProcessRetVal,
                    std::chrono::milliseconds{100000}),
                ChildExecutionFailure);
 }
