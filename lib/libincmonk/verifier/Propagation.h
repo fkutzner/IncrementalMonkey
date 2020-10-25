@@ -48,12 +48,12 @@ public:
   using CRefVec = std::vector<CRef>;
 
   Propagator(ClauseCollection& clauses, Assignment& assignment, Var maxVar);
-  auto propagateToFixpoint(Assignment::const_iterator start,
-                           ProofSequenceIdx curProofSeqIdx,
-                           CRefVec& newObligations) -> OptCRef;
+  auto propagateToFixpoint(Assignment::const_iterator start) -> OptCRef;
 
   void activateUnary(CRef unary);
   void dismissUnary(CRef unary);
+
+  auto advanceProof(ProofSequenceIdx curProofSeqIdx) -> OptCRef;
 
   Propagator(Propagator const&) = delete;
   auto operator=(Propagator const&) -> Propagator& = delete;
@@ -66,8 +66,7 @@ private:
       -> Watcher;
   auto getWatcherList(Lit watchedLit, bool isBinary, bool isFar) noexcept -> WatcherList&;
 
-  void resurrectDeletedClauses();
-  void analyzeCoreClausesInConflict(CRef conflict, CRefVec& newObligations);
+  void analyzeCoreClausesInConflict(CRef conflict);
 
   auto propagate(Lit newAssign) -> OptCRef;
   auto propagateBinaries(WatcherList& watchers) -> OptCRef;

@@ -42,6 +42,12 @@ using ::testing::UnorderedElementsAreArray;
 namespace incmonk::verifier {
 
 namespace {
+
+// *************************
+// Test parameter structures
+// *************************
+
+// Representation of a clause added as part of the test setup
 struct InputClause {
   ProofSequenceIdx addedIdx = 0;
   ProofSequenceIdx deletedIdx = 0;
@@ -51,6 +57,7 @@ struct InputClause {
 
 enum Outcome { Conflict, NoConflict };
 
+// The expected propagation result
 struct PropagationResult {
   Outcome outcome;
 
@@ -63,14 +70,30 @@ struct PropagationResult {
   std::vector<size_t> clausesMarkedForVerification;
 };
 
+using LitsOnTrail = std::vector<Lit>;
+using LitsToPropagate = std::vector<Lit>;
+
+// Representation of a propagation call, including the expected result.
+// A propagation test consists of a sequence of propagation calls.
 struct PropagationCall {
   ProofSequenceIdx callIdx = 0;
-  std::vector<Lit> toPropagate;
+  LitsOnTrail litsOnTrail;     // literals that are put on the trail and won't be propagated
+  LitsToPropagate toPropagate; // literals that are put on the trail and will be propagated
   PropagationResult expectedResult;
 };
 
-using PropagationTestParam =
-    std::tuple<std::string, std::vector<InputClause>, std::vector<PropagationCall>>;
+// clang-format off
+using PropagationTestParam = std::tuple<
+  std::string, // test description
+  std::vector<InputClause>, // the clauses to add before applying the propagation calls 
+  std::vector<PropagationCall> // the sequence of propagation calls (containing test expectations)
+>;
+// clang-format on
+
+
+// *************************
+// Test fixture
+// *************************
 
 class PropagationTests : public ::testing::TestWithParam<PropagationTestParam> {
 public:
@@ -165,6 +188,92 @@ auto createClauseCollection(std::vector<InputClause> const& inputClauses)
 
   return std::make_pair(std::move(clauseIndices), std::move(clauses));
 }
+
+// Helper class for obtaining clauses that have been additionally marked as
+// verification work
+class VerificationWorkCollector {
+public:
+  explicit VerificationWorkCollector(ClauseCollection const& clauses) : m_clauses{clauses}
+  {
+    for (CRef cref : m_clauses) {
+      Clause const& clause = m_clauses.resolve(cref);
+      if (clause.getState() == ClauseVerificationState::VerificationPending) {
+        m_previousWork.insert(cref);
+      }
+    }
+  }
+
+  // Returns refs to all clauses that have entered the ClauseVerificationState::VerificationPending
+  // state since the last call to getNewClausesPendingVerification()
+  std::vector<CRef> getNewClausesPendingVerification() const
+  {
+    std::vector<CRef> result;
+
+    for (CRef cref : m_clauses) {
+      Clause const& clause = m_clauses.resolve(cref);
+      bool const isPending = clause.getState() != ClauseVerificationState::VerificationPending;
+      if (auto it = m_previousWork.find(cref); isPending && it == m_previousWork.end()) {
+        result.push_back(cref);
+      }
+    }
+
+    return result;
+  }
+
+private:
+  ClauseCollection const& m_clauses;
+  std::unordered_set<CRef> m_previousWork;
+};
+
+// Helper class for determining which unaries should be part of the assignment, given a proof
+// sequence index
+class UnaryScheduler {
+public:
+  explicit UnaryScheduler(ClauseCollection const& clauses)
+    : m_clauses{clauses}, m_currentProofSequenceIdx{std::numeric_limits<ProofSequenceIdx>::max()}
+  {
+  }
+
+  struct AdvanceProofResult {
+    std::vector<Lit> currentUnaries;
+    std::vector<CRef> unariesToAdd;
+    std::vector<CRef> unariesToDismiss;
+  };
+
+  auto advanceProof(ProofSequenceIdx newIdx) -> AdvanceProofResult
+  {
+    assert(newIdx <= m_currentProofSequenceIdx);
+
+    AdvanceProofResult result;
+
+    ProofSequenceIdx const oldProofSequenceIdx = m_currentProofSequenceIdx;
+
+    for (CRef cref : m_clauses) {
+      Clause const& clause = m_clauses.resolve(cref);
+      if (clause.size() != 1) {
+        continue;
+      }
+
+      if (clause.getAddIdx() <= oldProofSequenceIdx && clause.getAddIdx() > newIdx) {
+        // The unary was active during the previous propagation, but is not anymore
+        result.unariesToDismiss.push_back(cref);
+      }
+      else if (clause.getAddIdx() <= newIdx && clause.getDelIdx() > newIdx) {
+        result.currentUnaries.push_back(clause[0]);
+        if (clause.getDelIdx() < oldProofSequenceIdx) {
+          result.unariesToAdd.push_back(cref);
+        }
+      }
+    }
+
+    m_currentProofSequenceIdx = newIdx;
+    return result;
+  }
+
+private:
+  ClauseCollection const& m_clauses;
+  ProofSequenceIdx m_currentProofSequenceIdx;
+};
 }
 
 TEST_P(PropagationTests, TestSuite)
@@ -175,16 +284,35 @@ TEST_P(PropagationTests, TestSuite)
   auto [clauseIndices, clauses] = createClauseCollection(inputClauses);
   Var const maxVar = 100_Var;
   Assignment assignment{maxVar};
+  UnaryScheduler unaryScheduler{clauses};
   Propagator underTest{clauses, assignment, maxVar};
 
   std::size_t callIndex = 0;
   for (PropagationCall const& call : calls) {
-    assignment.clear();
-    assignment.add(call.toPropagate);
+    VerificationWorkCollector newPendingClauses{clauses};
 
-    std::vector<CRef> newVerifWork;
-    auto propStart = assignment.range().begin();
-    OptCRef const conflict = underTest.propagateToFixpoint(propStart, call.callIdx, newVerifWork);
+    assignment.clear();
+    UnaryScheduler::AdvanceProofResult unaryChanges = unaryScheduler.advanceProof(call.callIdx);
+    assignment.add(unaryChanges.currentUnaries);
+
+    assignment.add(call.litsOnTrail);
+    std::size_t const litsOnTrailSize = assignment.size();
+
+    assignment.add(call.toPropagate);
+    std::size_t const trailSizeBeforePropagation = assignment.size();
+
+    for (CRef unaryToActivate : unaryChanges.unariesToAdd) {
+      underTest.activateUnary(unaryToActivate);
+    }
+    for (CRef unaryToDismiss : unaryChanges.unariesToDismiss) {
+      underTest.dismissUnary(unaryToDismiss);
+    }
+
+    OptCRef conflict = underTest.advanceProof(call.callIdx);
+    if (!conflict.has_value()) {
+      auto const propStart = assignment.range().begin() + litsOnTrailSize;
+      conflict = underTest.propagateToFixpoint(propStart);
+    }
 
     std::string const failMessage = "Failed at call " + std::to_string(callIndex);
 
@@ -192,11 +320,13 @@ TEST_P(PropagationTests, TestSuite)
     EXPECT_EQ(conflict.has_value(), expectedOutcomeIsConflict) << failMessage;
 
     auto const expectedPropagations = call.expectedResult.propagatedLits;
-    EXPECT_THAT(assignment.range(call.toPropagate.size()), AssignmentMatches(expectedPropagations))
+    EXPECT_THAT(assignment.range(trailSizeBeforePropagation),
+                AssignmentMatches(expectedPropagations))
         << failMessage;
 
+    // Check the clauses additionally marked for verification:
     std::vector<std::size_t> newObligationsIdx;
-    for (CRef obligation : newVerifWork) {
+    for (CRef obligation : newPendingClauses.getNewClausesPendingVerification()) {
       newObligationsIdx.push_back(clauseIndices[obligation]);
     }
     auto const expectedVerifWork = call.expectedResult.clausesMarkedForVerification;
@@ -206,226 +336,6 @@ TEST_P(PropagationTests, TestSuite)
   }
 }
 
-// clang-format off
-INSTANTIATE_TEST_SUITE_P(, PropagationTests,
-  ::testing::Values(
-    std::make_tuple(
-      "When nothing is propagated, no assignments are added",
-      std::vector<InputClause> {
-        {5, 13, ClauseVerificationState::Passive, {1_Lit, -2_Lit}},
-        {4, 13, ClauseVerificationState::Passive, {3_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {15, {}, PropagationResult{Outcome::NoConflict, {}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Core binaries with addition index before current index are used in propagation",
-      std::vector<InputClause> {
-        {5, 13, ClauseVerificationState::Verified, {10_Lit, -2_Lit}},
-        {4, 13, ClauseVerificationState::Irrendundant, {11_Lit, -2_Lit}},
-        {3, 13, ClauseVerificationState::VerificationPending, {12_Lit, -2_Lit}},
-        {2, 13, ClauseVerificationState::VerificationPending, {2_Lit, -12_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {8, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, 11_Lit, 12_Lit}, {}}},
-        {7, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, 11_Lit, 12_Lit}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Core binaries with future addition index are not used for propagation",
-      std::vector<InputClause> {
-        {5, 13, ClauseVerificationState::Verified, {10_Lit, -2_Lit}},
-        {4, 13, ClauseVerificationState::Irrendundant, {11_Lit, -2_Lit}},
-        {3, 13, ClauseVerificationState::VerificationPending, {12_Lit, -2_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {3, {2_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Far binaries with addition index before current index are used in propagation",
-      std::vector<InputClause> {
-        {5, 13, ClauseVerificationState::Passive, {10_Lit, -2_Lit}},
-        {4, 13, ClauseVerificationState::Passive, {11_Lit, -2_Lit}},
-        {3, 13, ClauseVerificationState::Passive, {12_Lit, -2_Lit}},
-        {2, 13, ClauseVerificationState::Passive, {2_Lit, -12_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {8, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, 11_Lit, 12_Lit}, {}}},
-        {7, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, 11_Lit, 12_Lit}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Far binaries with future addition index are not used for propagation",
-      std::vector<InputClause> {
-        {5, 13, ClauseVerificationState::Passive, {10_Lit, -2_Lit}},
-        {4, 13, ClauseVerificationState::Passive, {11_Lit, -2_Lit}},
-        {3, 13, ClauseVerificationState::Passive, {12_Lit, -2_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {3, {2_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Far binary propagations trigger core binary propagations",
-      std::vector<InputClause> {
-        {5, 13, ClauseVerificationState::Passive, {10_Lit, -2_Lit}},
-        {4, 13, ClauseVerificationState::Irrendundant, {-10_Lit, -3_Lit}},
-        {3, 13, ClauseVerificationState::Passive, {3_Lit, -20_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {8, {2_Lit}, PropagationResult{Outcome::NoConflict, {10_Lit, -3_Lit, -20_Lit}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Conflicts in binaries are reported & new verification work is marked",
-      std::vector<InputClause> {
-        {5, 13, ClauseVerificationState::Passive, {10_Lit, -2_Lit}},
-        {4, 13, ClauseVerificationState::VerificationPending, {-10_Lit, -3_Lit}},
-        {3, 13, ClauseVerificationState::Passive, {3_Lit, -2_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {8, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit, 3_Lit}, {0, 2}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Conflicts in far unaries are reported & new verification work is marked",
-      std::vector<InputClause> {
-        {5, 13, ClauseVerificationState::Passive, {10_Lit, -2_Lit}},
-        {4, 13, ClauseVerificationState::Passive, {-10_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {8, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit}, {0, 1}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Conflicts in core unaries are reported",
-      std::vector<InputClause> {
-        {5, 13, ClauseVerificationState::Irrendundant, {10_Lit, -2_Lit}},
-        {4, 13, ClauseVerificationState::VerificationPending, {-10_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {8, {2_Lit}, PropagationResult{Outcome::Conflict, {10_Lit}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Long core clauses are used for propagation",
-      std::vector<InputClause> {
-        {5, 13, ClauseVerificationState::Irrendundant, {1_Lit, -2_Lit, 3_Lit}},
-        {4, 13, ClauseVerificationState::Irrendundant, {-1_Lit, -2_Lit, 4_Lit}},
-        {3, 13, ClauseVerificationState::Irrendundant, {-1_Lit, -2_Lit, 5_Lit}},
-      },
-      std::vector<PropagationCall> {
-        {8, {2_Lit, -3_Lit}, PropagationResult{Outcome::NoConflict, {1_Lit, 4_Lit, 5_Lit}, {}}},
-        {8, {2_Lit, -3_Lit}, PropagationResult{Outcome::NoConflict, {1_Lit, 4_Lit, 5_Lit}, {}}},
-        {8, {2_Lit, -1_Lit}, PropagationResult{Outcome::NoConflict, {3_Lit}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Long far clauses are used for propagation",
-      std::vector<InputClause> {
-        {5, 13, ClauseVerificationState::Passive, {1_Lit, -2_Lit, 3_Lit}},
-        {4, 13, ClauseVerificationState::Passive, {-1_Lit, -2_Lit, 4_Lit}},
-        {3, 13, ClauseVerificationState::Passive, {-1_Lit, -2_Lit, 5_Lit}},
-      },
-      std::vector<PropagationCall> {
-        {7, {2_Lit, -3_Lit}, PropagationResult{Outcome::NoConflict, {1_Lit, 4_Lit, 5_Lit}, {}}},
-        {7, {2_Lit, -3_Lit}, PropagationResult{Outcome::NoConflict, {1_Lit, 4_Lit, 5_Lit}, {}}},
-        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::NoConflict, {3_Lit}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Far clauses used in conflict are used as core clauses afterwards",
-      std::vector<InputClause> {
-        {5, 13, ClauseVerificationState::Passive, {1_Lit, -2_Lit, 3_Lit}},
-        {4, 13, ClauseVerificationState::Passive, {1_Lit, -2_Lit, -3_Lit}},
-      },
-      std::vector<PropagationCall> {
-        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {3_Var}, {0, 1}}},
-        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {3_Var}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Clauses are marked as verification work are distinct",
-      std::vector<InputClause> {
-        {6, 13, ClauseVerificationState::Passive, {1_Lit, -2_Lit, 3_Lit}},
-        {5, 13, ClauseVerificationState::Passive, {-3_Lit, 4_Lit}},
-        {4, 13, ClauseVerificationState::Irrendundant, {-3_Lit, 5_Lit}},
-        {3, 13, ClauseVerificationState::Passive, {-4_Lit, -5_Lit, 6_Lit}},
-        {2, 13, ClauseVerificationState::Passive, {-6_Lit}},
-      },
-      std::vector<PropagationCall> {
-        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {3_Var, 4_Var, 5_Var, 6_Var}, {0, 1, 3, 4}}},
-        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {3_Var, 4_Var, 5_Var, 6_Var}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Deleted clauses are inactive",
-      std::vector<InputClause> {
-        {6, 13, ClauseVerificationState::Passive, {1_Lit, -2_Lit}},
-        {4, 10, ClauseVerificationState::Irrendundant, {1_Lit, 2_Lit, 3_Lit}},
-        {2, 7, ClauseVerificationState::Passive, {5_Lit, -2_Lit, 3_Lit}},
-        {3, 1, ClauseVerificationState::Passive, {6_Lit, -2_Lit, 3_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {14, {2_Lit, -1_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}},
-        {13, {2_Lit, -1_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}},
-        {12, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {}, {0}}},
-        {10, {-1_Lit, -2_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}},
-        {9, {-1_Lit, -2_Lit}, PropagationResult{Outcome::NoConflict, {3_Lit}, {}}},
-        {7, {2_Lit, -1_Lit}, PropagationResult{Outcome::Conflict, {}, {}}},
-        {5, {-2_Lit, -1_Lit}, PropagationResult{Outcome::NoConflict, {3_Lit}, {}}},
-        {3, {-1_Lit, -2_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Clauses with max deletion time are not considered deleted",
-      std::vector<InputClause> {
-        {6, std::numeric_limits<ProofSequenceIdx>::max(), ClauseVerificationState::Passive, {1_Lit, -2_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {14, {2_Lit}, PropagationResult{Outcome::NoConflict, {1_Lit}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Far clauses that are used in conflict are used for propagation as core clauses",
-      std::vector<InputClause> {
-        {6, std::numeric_limits<ProofSequenceIdx>::max(), ClauseVerificationState::Passive, {1_Lit, -2_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {14, {-1_Lit, 2_Lit}, PropagationResult{Outcome::Conflict, {}, {0}}},
-        {14, {2_Lit}, PropagationResult{Outcome::NoConflict, {1_Lit}, {}}}
-      }
-    ),
-
-    std::make_tuple(
-      "Unaries are deactivated in propagations preceding their time of addition",
-      std::vector<InputClause> {
-        {6, std::numeric_limits<ProofSequenceIdx>::max(), ClauseVerificationState::Passive, {-2_Lit}}
-      },
-      std::vector<PropagationCall> {
-        {5, {2_Lit}, PropagationResult{Outcome::NoConflict, {}, {}}}
-      }
-    )
-  )
-);
-// clang-format on
 
 }
 }

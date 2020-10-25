@@ -93,15 +93,8 @@ auto Propagator::makeWatcher(CRef cref, Clause const& clause, WatcherPos watcher
   return Watcher{clause.getAddIdx(), blocker, cref};
 }
 
-auto Propagator::propagateToFixpoint(Assignment::const_iterator start,
-                                     ProofSequenceIdx curProofSeqIdx,
-                                     CRefVec& newObligations) -> OptCRef
+auto Propagator::propagateToFixpoint(Assignment::const_iterator start) -> OptCRef
 {
-  assert(curProofSeqIdx <= m_proofSequenceIndex);
-  m_proofSequenceIndex = curProofSeqIdx;
-
-  resurrectDeletedClauses();
-
   for (Lit l : m_assignment.range()) {
     if (!m_watchers[l].isUnaryReason) {
       m_watchers[l].assignmentReason = std::nullopt;
@@ -111,7 +104,7 @@ auto Propagator::propagateToFixpoint(Assignment::const_iterator start,
   Assignment::const_iterator cursor = start;
   while (cursor != m_assignment.range().end()) {
     if (OptCRef conflict = propagate(*cursor); conflict.has_value()) {
-      analyzeCoreClausesInConflict(*conflict, newObligations);
+      analyzeCoreClausesInConflict(*conflict);
       return conflict;
     }
     ++cursor;
@@ -260,28 +253,99 @@ auto Propagator::propInNonBins(Lit newAssign, WatcherList& watchers) -> OptCRef
   return std::nullopt;
 }
 
-void Propagator::resurrectDeletedClauses()
+namespace advanceProof_detail {
+namespace {
+void tryMoveNonFalseLitsToFront(Clause& clause, Assignment const& assignment)
 {
+  for (Clause::size_type watchedIdx : {0, 1}) {
+    if (assignment.get(clause[watchedIdx]) != t_false) {
+      continue;
+    }
+
+    for (Clause::size_type curIdx = 2, end = clause.size(); curIdx < end; ++curIdx) {
+      if (assignment.get(clause[watchedIdx]) != t_false) {
+        std::swap(clause[watchedIdx], clause[curIdx]);
+        break;
+      }
+    }
+  }
+
+  if (assignment.get(clause[1]) != t_false) {
+    std::swap(clause[0], clause[1]);
+  }
+}
+
+auto isFalsified(Clause const& clause, Assignment const& assignment) -> bool
+{
+  return assignment.get(clause[0]) == t_false && assignment.get(clause[1]) == t_false;
+}
+
+auto isForcingFirstLit(Clause const& clause, Assignment const& assignment) -> bool
+{
+  return assignment.get(clause[0]) == t_indet && assignment.get(clause[1]) == t_false;
+}
+}
+}
+
+auto Propagator::advanceProof(ProofSequenceIdx curProofSeqIdx) -> OptCRef
+{
+  using namespace advanceProof_detail;
+
+  assert(curProofSeqIdx <= m_proofSequenceIndex);
+  m_proofSequenceIndex = curProofSeqIdx;
+
+  Assignment::size_type const originalNumAssigns = m_assignment.size();
+
   std::size_t resurrected = 0;
+  std::optional<CRef> falsifiedClause;
   for (auto crIter = m_deletedClauses.rbegin(); crIter != m_deletedClauses.rend(); ++crIter) {
     CRef crefToAdd = *crIter;
     Clause& clauseToAdd = m_clauses.resolve(crefToAdd);
-
     if (clauseToAdd.getDelIdx() <= m_proofSequenceIndex) {
       break;
     }
 
-    if (clauseToAdd.getAddIdx() < m_proofSequenceIndex) {
+    if (clauseToAdd.size() >= 2 && clauseToAdd.getAddIdx() < m_proofSequenceIndex) {
+      // Trying to make the clause addition consistent with the current assignment.
+      // However, if falsifiedClause already has a value, the current assignment
+      // needs to be undone completely before propagating again, rendering further
+      // consistency maintenance obsolete:
+      bool const preserveAssignment = (!m_assignment.empty() && !falsifiedClause.has_value());
+      if (preserveAssignment) {
+        tryMoveNonFalseLitsToFront(clauseToAdd, m_assignment);
+        if (isFalsified(clauseToAdd, m_assignment)) {
+          falsifiedClause = crefToAdd;
+
+          // The fact clauseToAdd this clause is falsified can be used to
+          // justify other parts of the proof, so mark it (and its dependencies)
+          // as verification work:
+          analyzeCoreClausesInConflict(*falsifiedClause);
+        }
+        else if (isForcingFirstLit(clauseToAdd, m_assignment)) {
+          m_assignment.add(clauseToAdd[0]);
+          m_watchers[clauseToAdd[0]].assignmentReason = crefToAdd;
+        }
+      }
+
       addClause(crefToAdd, clauseToAdd);
-      ++resurrected;
     }
+
+    ++resurrected;
   }
 
   std::size_t remaining = m_deletedClauses.size() - resurrected;
   m_deletedClauses = m_deletedClauses.subspan(0, remaining);
+
+  if (falsifiedClause.has_value()) {
+    return falsifiedClause;
+  }
+  else {
+    auto const propStart = m_assignment.range().begin() + originalNumAssigns;
+    return propagateToFixpoint(propStart);
+  }
 }
 
-void Propagator::analyzeCoreClausesInConflict(CRef conflict, CRefVec& newObligations)
+void Propagator::analyzeCoreClausesInConflict(CRef conflict)
 {
   std::vector<CRef> analysisWork{conflict};
 
@@ -292,7 +356,6 @@ void Propagator::analyzeCoreClausesInConflict(CRef conflict, CRefVec& newObligat
 
     if (currentClause.getState() == ClauseVerificationState::Passive) {
       currentClause.setState(ClauseVerificationState::VerificationPending);
-      newObligations.push_back(currentRef);
 
       // Re-adding the clause as a core clause. It will be cleaned from the far
       // watchers on-the-fly later on.
