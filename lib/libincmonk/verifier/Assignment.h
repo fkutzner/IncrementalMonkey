@@ -31,6 +31,7 @@
 #include <libincmonk/verifier/Clause.h>
 
 #include <cassert>
+#include <ostream>
 #include <vector>
 
 namespace incmonk::verifier {
@@ -78,6 +79,8 @@ private:
   size_type m_numAssignments;
   Var m_maxVar;
 };
+
+auto operator<<(std::ostream& stream, Assignment::Range const& toPrint) -> std::ostream&;
 
 //
 // Implementation

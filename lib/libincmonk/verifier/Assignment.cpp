@@ -83,4 +83,14 @@ void Assignment::increaseSizeTo(Var newMaxVar)
   m_assignmentMap.increaseSizeTo(newMaxVar);
   m_maxVar = newMaxVar;
 }
+
+auto operator<<(std::ostream& stream, Assignment::Range const& toPrint) -> std::ostream&
+{
+  stream << "{";
+  for (Lit lit : toPrint) {
+    stream << lit << " ";
+  }
+  stream << "}";
+  return stream;
+}
 }
