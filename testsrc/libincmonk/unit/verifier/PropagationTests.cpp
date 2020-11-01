@@ -55,7 +55,16 @@ struct InputClause {
   std::vector<Lit> lits;
 };
 
+auto operator<<(std::ostream& stream, InputClause const&) -> std::ostream&
+{
+  stream << "<InputClause>"; // test names are printed on failure, don't flood the screen
+  return stream;
+}
+
 enum Outcome { Conflict, NoConflict };
+
+using PropagatedLits = std::vector<std::variant<Lit, Var>>;
+using ClaMarkedForVerify = std::vector<size_t>;
 
 // The expected propagation result
 struct PropagationResult {
@@ -63,11 +72,11 @@ struct PropagationResult {
 
   // If a variable V is specified in `propagatedLits`, either V or -V is expected
   // to be part of the assignment after propagation
-  std::vector<std::variant<Lit, Var>> propagatedLits;
+  PropagatedLits propagatedLits;
 
   // Indices of (wrt the list of InputClause objects) of clauses which have entered
   // the VerificationPending state during propagation
-  std::vector<size_t> clausesMarkedForVerification;
+  ClaMarkedForVerify clausesMarkedForVerification;
 };
 
 using LitsOnTrail = std::vector<Lit>;
@@ -81,6 +90,12 @@ struct PropagationCall {
   LitsToPropagate toPropagate; // literals that are put on the trail and will be propagated
   PropagationResult expectedResult;
 };
+
+auto operator<<(std::ostream& stream, PropagationCall const&) -> std::ostream&
+{
+  stream << "<PropagationCall>"; // test names are printed on failure, don't flood the screen
+  return stream;
+}
 
 // clang-format off
 using PropagationTestParam = std::tuple<
@@ -211,7 +226,7 @@ public:
 
     for (CRef cref : m_clauses) {
       Clause const& clause = m_clauses.resolve(cref);
-      bool const isPending = clause.getState() != ClauseVerificationState::VerificationPending;
+      bool const isPending = clause.getState() == ClauseVerificationState::VerificationPending;
       if (auto it = m_previousWork.find(cref); isPending && it == m_previousWork.end()) {
         result.push_back(cref);
       }
@@ -336,6 +351,171 @@ TEST_P(PropagationTests, TestSuite)
   }
 }
 
+// clang-format off
+INSTANTIATE_TEST_SUITE_P(, PropagationTests,
+  ::testing::Values(
+    std::make_tuple(
+      "When no clauses are present, then propagation does not add any literals to the assignment",
+      std::vector<InputClause>{},
+      std::vector<PropagationCall> {
+        PropagationCall {
+          ProofSequenceIdx{0}, LitsOnTrail{10_Lit}, LitsToPropagate{5_Lit},
+          PropagationResult {
+            Outcome::NoConflict,
+            PropagatedLits{},
+            ClaMarkedForVerify{}
+          }
+        }
+      }
+    ),
 
+    std::make_tuple(
+      "When a size-3 clause is added before current index, then it is used for propagation",
+      std::vector<InputClause>{
+        InputClause {
+          ProofSequenceIdx{0},
+          ProofSequenceIdx{10},
+          ClauseVerificationState::Passive,
+          std::vector<Lit>{1_Lit, -2_Lit, 3_Lit}
+        }
+      },
+      std::vector<PropagationCall> {
+        PropagationCall {
+          ProofSequenceIdx{5},LitsOnTrail{-3_Lit}, LitsToPropagate{-1_Lit},
+          PropagationResult {
+            Outcome::NoConflict,
+            PropagatedLits{-2_Lit},
+            ClaMarkedForVerify{} // No conflict -> no new verification work
+          }
+        }
+      }
+    ),
+
+    std::make_tuple(
+      "When a size-3 clause is deleted at current index, then it is used for propagation",
+      std::vector<InputClause>{
+        InputClause {
+          ProofSequenceIdx{0},
+          ProofSequenceIdx{10},
+          ClauseVerificationState::Passive,
+          std::vector<Lit>{1_Lit, -2_Lit, 3_Lit}
+        }
+      },
+      std::vector<PropagationCall> {
+        PropagationCall {
+          ProofSequenceIdx{10},LitsOnTrail{-3_Lit}, LitsToPropagate{-1_Lit},
+          PropagationResult {
+            Outcome::NoConflict,
+            PropagatedLits{-2_Lit},
+            ClaMarkedForVerify{} // No conflict -> no new verification work
+          }
+        }
+      }
+    ),
+
+    std::make_tuple(
+      "When a size-3 clause is deleted before current index, then it is not used for propagation",
+      std::vector<InputClause>{
+        InputClause {
+          ProofSequenceIdx{0},
+          ProofSequenceIdx{10},
+          ClauseVerificationState::Passive,
+          std::vector<Lit>{1_Lit, -2_Lit, 3_Lit}
+        }
+      },
+      std::vector<PropagationCall> {
+        PropagationCall {
+          ProofSequenceIdx{11},LitsOnTrail{-3_Lit}, LitsToPropagate{-1_Lit},
+          PropagationResult {
+            Outcome::NoConflict,
+            PropagatedLits{},
+            ClaMarkedForVerify{}
+          }
+        }
+      }
+    ),
+
+    std::make_tuple(
+      "When a size-3 clause is added at current index, then it is not used for propagation",
+      std::vector<InputClause>{
+        InputClause {
+          ProofSequenceIdx{4},
+          ProofSequenceIdx{10},
+          ClauseVerificationState::Passive,
+          std::vector<Lit>{1_Lit, -2_Lit, 3_Lit}
+        }
+      },
+      std::vector<PropagationCall> {
+        PropagationCall {
+          ProofSequenceIdx{4},LitsOnTrail{-3_Lit}, LitsToPropagate{-1_Lit},
+          PropagationResult {
+            Outcome::NoConflict,
+            PropagatedLits{},
+            ClaMarkedForVerify{}
+          }
+        }
+      }
+    ),
+
+    std::make_tuple(
+      "When a size-3 clause is added before current index, then it is not used for propagation",
+      std::vector<InputClause>{
+        InputClause {
+          ProofSequenceIdx{4},
+          ProofSequenceIdx{10},
+          ClauseVerificationState::Passive,
+          std::vector<Lit>{1_Lit, -2_Lit, 3_Lit}
+        }
+      },
+      std::vector<PropagationCall> {
+        PropagationCall {
+          ProofSequenceIdx{2},LitsOnTrail{-3_Lit}, LitsToPropagate{-1_Lit},
+          PropagationResult {
+            Outcome::NoConflict,
+            PropagatedLits{},
+            ClaMarkedForVerify{}
+          }
+        }
+      }
+    ),
+
+    std::make_tuple(
+      "When a clause is part of a conflict, then it is marked as verification work",
+      std::vector<InputClause>{
+        InputClause {
+          ProofSequenceIdx{4},
+          ProofSequenceIdx{10},
+          ClauseVerificationState::Passive,
+          std::vector<Lit>{1_Lit, -2_Lit, -3_Lit, 4_Lit}
+        },
+
+        InputClause {
+          ProofSequenceIdx{4},
+          ProofSequenceIdx{10},
+          ClauseVerificationState::Passive,
+          std::vector<Lit>{1_Lit, -2_Lit, -3_Lit, -4_Lit}
+        },
+
+        InputClause { // irrelevant clause, should not be marked for verification
+          ProofSequenceIdx{4},
+          ProofSequenceIdx{10},
+          ClauseVerificationState::Passive,
+          std::vector<Lit>{1_Lit, 2_Lit, -3_Lit, -4_Lit}
+        }
+      },
+      std::vector<PropagationCall> {
+        PropagationCall {
+          ProofSequenceIdx{6},LitsOnTrail{-1_Lit}, LitsToPropagate{2_Lit, 3_Lit},
+          PropagationResult {
+            Outcome::Conflict,
+            PropagatedLits{},
+            ClaMarkedForVerify{0, 1}
+          }
+        }
+      }
+    )
+  )
+);
+// clang-format on
 }
 }
