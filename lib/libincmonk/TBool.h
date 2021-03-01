@@ -35,6 +35,7 @@
 #include <libincmonk/CNF.h>
 
 #include <cstdint>
+#include <ostream>
 
 namespace incmonk {
 
@@ -66,5 +67,19 @@ private:
 constexpr TBool t_false = TBool::createFalse(); //< Ternary false
 constexpr TBool t_true = TBool::createTrue();   //< Ternary true
 constexpr TBool t_indet = TBool::createIndet(); //< Ternary indeterminate
+
+inline auto operator<<(std::ostream& target, TBool tbool) -> std::ostream&
+{
+  if (tbool == t_false) {
+    target << "false";
+  }
+  else if (tbool == t_true) {
+    target << "true";
+  }
+  else {
+    target << "indet";
+  }
+  return target;
+}
 
 }
