@@ -37,6 +37,8 @@ nm_add_library(libincmonk STATIC
   verifier/Clause.cpp
   verifier/Clause.h
   verifier/ClauseImpl.h
+  verifier/RUPChecker.cpp
+  verifier/RUPChecker.h
   verifier/Traits.h
 )
 
