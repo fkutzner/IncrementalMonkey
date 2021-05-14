@@ -17,17 +17,15 @@ public:
   auto checkRUP(gsl::span<Lit const> clause, ProofSequenceIdx index) -> RUPCheckResult;
 
 private:
-  enum ProofIndexUpdateResult {
-    // Advancing the proof to some index may immediately result in a
-    // conflict forced by unary clauses. In these regions of the proof,
-    // all clauses have RUP.
-    Conflict,
-    NoConflict
-  };
-
+  void setupWatchers();
   void initializeProof();
-  auto advanceProof(ProofSequenceIdx index) -> ProofIndexUpdateResult;
-  auto propagateToFixpoint(Assignment::Range assignment) -> RUPCheckResult;
+
+  enum class AdvanceProofResult { UnaryConflict, NoConflict };
+  auto advanceProof(ProofSequenceIdx index) -> AdvanceProofResult;
+
+  enum class PropagateResult { Conflict, NoConflict };
+  auto assignAndPropagateToFixpoint(Lit lit, std::optional<CRef> reason) -> PropagateResult;
+  auto propagate(Lit lit) -> PropagateResult;
 
 
   struct Watcher {
@@ -38,19 +36,13 @@ private:
   ClauseCollection& m_clauses;
 
   /**
-   * The list of clauses under current consideration. Clauses are popped off
-   * this list as the proof progresses.
-   */
-  std::vector<CRef> m_clausesUnderConsideration;
-
-  /**
    * The current assignment. Unary clause assignments are preserved between
    * proof steps.
    */
   Assignment m_assignment;
 
   /**
-   * If a literal L is assigned false, all m_watchers[L] must be checked if
+   * If a literal L is assigned true, all m_watchers[L] must be checked if
    * their clause forces an assignment.
    */
   BoundedMap<Lit, std::vector<Watcher>> m_watchers;
