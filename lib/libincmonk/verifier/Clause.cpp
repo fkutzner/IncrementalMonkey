@@ -61,7 +61,7 @@ auto operator<<(std::ostream& stream, Clause const& clause) -> std::ostream&
   for (Lit lit : clause.getLiterals().subspan(1)) {
     stream << ", " << lit;
   }
-  stream << "}; addIdx=" << clause.getAddIdx() << ", delIdx=" << clause.getDelIdx()
+  stream << "}; addIdx=" << clause.getAddIdx()
          << ", state=" << static_cast<uint32_t>(clause.getState()) << ")";
   return stream;
 }
@@ -287,25 +287,6 @@ auto ClauseCollection::isValidRef(Ref cref) const noexcept -> bool
   return (4 * cref.m_offset) < m_highWaterMark;
 }
 
-void ClauseCollection::markDeleted(Ref cref, ProofSequenceIdx atIdx)
-{
-  assert(isValidRef(cref));
-  Clause& clause = resolve(cref);
-  assert(clause.getDelIdx() < std::numeric_limits<ProofSequenceIdx>::max());
-
-  if (!m_deletedClauses.empty()) {
-    assert(resolve(m_deletedClauses.back()).getDelIdx() <= atIdx);
-  }
-
-  clause.setDelIdx(atIdx);
-  m_deletedClauses.push_back(cref);
-}
-
-auto ClauseCollection::getDeletedClausesOrdered() const noexcept -> DeletedClausesRng
-{
-  return m_deletedClauses;
-}
-
 auto ClauseCollection::RefIterator::operator++() noexcept -> RefIterator&
 {
   Clause const* clause = reinterpret_cast<Clause const*>(m_clausePtr);
@@ -333,13 +314,11 @@ auto ClauseCollection::operator=(ClauseCollection&& rhs) -> ClauseCollection&
   this->m_memory = rhs.m_memory;
   this->m_currentSize = rhs.m_currentSize;
   this->m_highWaterMark = rhs.m_highWaterMark;
-  this->m_deletedClauses = std::move(rhs.m_deletedClauses);
   this->m_clauseFinder = std::move(rhs.m_clauseFinder);
 
   rhs.m_memory = nullptr;
   rhs.m_currentSize = 0;
   rhs.m_highWaterMark = 0;
-  rhs.m_deletedClauses.clear();
   return *this;
 }
 

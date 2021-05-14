@@ -3,8 +3,6 @@
 #include <libincmonk/verifier/Assignment.h>
 #include <libincmonk/verifier/Clause.h>
 
-#include <tsl/hopscotch_map.h>
-
 #include <limits>
 #include <vector>
 
@@ -16,7 +14,7 @@ class RUPChecker {
 public:
   explicit RUPChecker(ClauseCollection& clauses);
 
-  auto checkRUP(gsl::span<Lit> clause, ProofSequenceIdx index) -> RUPCheckResult;
+  auto checkRUP(gsl::span<Lit const> clause, ProofSequenceIdx index) -> RUPCheckResult;
 
 private:
   enum ProofIndexUpdateResult {
@@ -27,10 +25,8 @@ private:
     NoConflict
   };
 
-  auto initializeProof(ProofSequenceIdx index) -> ProofIndexUpdateResult;
-  auto advanceInitializedProof(ProofSequenceIdx index) -> ProofIndexUpdateResult;
+  void initializeProof();
   auto advanceProof(ProofSequenceIdx index) -> ProofIndexUpdateResult;
-
   auto propagateToFixpoint(Assignment::Range assignment) -> RUPCheckResult;
 
 
@@ -66,10 +62,10 @@ private:
   BoundedMap<Lit, OptCRef> m_reasons;
 
   /**
-   * The rest of the proof may contain both {-x} and {x}. This can't be dealt
-   * with in regular watcher-based propagation, so it is stored explicitly.
+   * If the proof contains clauses {-x} and {x}, all clauses beyond them
+   * have the RUP property. These unaries need to be checked as well, eventually.
    */
-  tsl::hopscotch_map<Var, std::vector<CRef>> m_directUnaryConflicts;
+  std::vector<CRef> m_directUnaryConflicts;
 
   /**
    * The current proof sequence index, a monotonically decreasing value.

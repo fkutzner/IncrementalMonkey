@@ -135,8 +135,6 @@ public:
   auto getState() const noexcept -> ClauseVerificationState;
 
   auto getAddIdx() const noexcept -> ProofSequenceIdx;
-  auto getDelIdx() const noexcept -> ProofSequenceIdx;
-  void setDelIdx(ProofSequenceIdx idx) noexcept;
 
 private:
   friend class ClauseCollection;
@@ -145,7 +143,6 @@ private:
   size_type m_size;
   uint32_t m_flags;
   ProofSequenceIdx m_pointOfAdd;
-  ProofSequenceIdx m_pointOfDel;
   Lit m_firstLit;
 };
 
@@ -202,7 +199,6 @@ public:
   };
 
   using LitSpan = gsl::span<Lit const>;
-  using DeletedClausesRng = gsl::span<Ref const>;
   using OccRng = gsl::span<Ref const>;
 
 
@@ -214,9 +210,6 @@ public:
 
   auto begin() const noexcept -> RefIterator;
   auto end() const noexcept -> RefIterator;
-
-  void markDeleted(Ref cref, ProofSequenceIdx atIdx);
-  auto getDeletedClausesOrdered() const noexcept -> DeletedClausesRng;
 
   auto getMaxVar() const noexcept -> Var;
 

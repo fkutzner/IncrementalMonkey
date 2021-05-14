@@ -206,23 +206,10 @@ inline auto Clause::getAddIdx() const noexcept -> ProofSequenceIdx
   return m_pointOfAdd;
 }
 
-inline auto Clause::getDelIdx() const noexcept -> ProofSequenceIdx
-{
-  return m_pointOfDel;
-}
-
-inline void Clause::setDelIdx(ProofSequenceIdx idx) noexcept
-{
-  m_pointOfDel = idx;
-}
-
 inline Clause::Clause(size_type size,
                       ClauseVerificationState initialState,
                       ProofSequenceIdx addIdx) noexcept
-  : m_size{size}
-  , m_pointOfAdd{addIdx}
-  , m_pointOfDel{std::numeric_limits<ProofSequenceIdx>::max()}
-  , m_firstLit{Var{0}, false}
+  : m_size{size}, m_pointOfAdd{addIdx}, m_firstLit{Var{0}, false}
 {
   setState(initialState);
 }
