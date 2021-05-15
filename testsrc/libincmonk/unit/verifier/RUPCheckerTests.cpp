@@ -23,7 +23,7 @@ using TestClauses = std::vector<TestClause>;
 
 struct CheckerInvocationSpec {
   size_t clauseIdx = 0;
-  RUPCheckResult expected = RUPCheckResult::ViolatesRUP;
+  bool expectedResult = false;
 };
 
 using CheckerInvocationSpecs = std::vector<CheckerInvocationSpec>;
@@ -76,8 +76,8 @@ TEST_P(RUPCheckerTest, Check)
   for (auto it = testSpec.invocationSpecs.begin(); it != testSpec.invocationSpecs.end(); ++it) {
     CheckerInvocationSpec const& invocation = *it;
     TestClause const& testClause = testSpec.proof[invocation.clauseIdx];
-    auto const result = mUnderTest->checkRUP(testClause.lits, testClause.addIndex);
-    EXPECT_THAT(result, ::testing::Eq(invocation.expected))
+    bool const result = mUnderTest->isRUP(testClause.lits, testClause.addIndex);
+    EXPECT_THAT(result, ::testing::Eq(invocation.expectedResult))
         << "Failed at invocation spec index "
         << std::distance(testSpec.invocationSpecs.begin(), it);
   }
@@ -95,7 +95,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {2, ClauseVerificationState::Passive, {1_Lit}}
       },
       CheckerInvocationSpecs {
-        {1, RUPCheckResult::HasRUP},
+        {1, true},
       }
     },
 
@@ -112,13 +112,13 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {7, ClauseVerificationState::Passive, {-1_Lit}}
       },
       CheckerInvocationSpecs {
-        {6, RUPCheckResult::HasRUP},
-        {5, RUPCheckResult::HasRUP},
-        {4, RUPCheckResult::HasRUP},
-        {3, RUPCheckResult::HasRUP},
-        {2, RUPCheckResult::ViolatesRUP},
-        {1, RUPCheckResult::HasRUP},
-        {0, RUPCheckResult::ViolatesRUP}
+        {6, true},
+        {5, true},
+        {4, true},
+        {3, true},
+        {2, false},
+        {1, true},
+        {0, false}
       }
     },
 
@@ -131,7 +131,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {3, ClauseVerificationState::Passive, {}}
       },
       CheckerInvocationSpecs {
-        {2, RUPCheckResult::HasRUP}
+        {2, true}
       }
     },
 
@@ -147,7 +147,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {2, ClauseVerificationState::Passive, {}}
       },
       CheckerInvocationSpecs {
-        {5, RUPCheckResult::HasRUP}
+        {5, true}
       }
     },
 
@@ -162,7 +162,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {2, ClauseVerificationState::Passive, {1_Lit}}
       },
       CheckerInvocationSpecs {
-        {4, RUPCheckResult::HasRUP}
+        {4, true}
       }
     },
 
@@ -176,7 +176,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {2, ClauseVerificationState::Passive, {-1_Lit}}
       },
       CheckerInvocationSpecs {
-        {3, RUPCheckResult::ViolatesRUP}
+        {3, false}
       }
     },
 
@@ -193,9 +193,9 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {6, ClauseVerificationState::Passive, {1_Lit}}
       },
       CheckerInvocationSpecs {
-        {6, RUPCheckResult::HasRUP},
-        {5, RUPCheckResult::HasRUP},
-        {2, RUPCheckResult::ViolatesRUP}
+        {6, true},
+        {5, true},
+        {2, false}
       }
     },
 
@@ -220,10 +220,10 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {4, ClauseVerificationState::Passive, {}}
       },
       CheckerInvocationSpecs {
-       {11, RUPCheckResult::HasRUP},
-       {10, RUPCheckResult::HasRUP},
-       {9, RUPCheckResult::HasRUP},
-       {8, RUPCheckResult::HasRUP}
+       {11, true},
+       {10, true},
+       {9, true},
+       {8, true}
       }
     },
 
@@ -249,10 +249,10 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {4, ClauseVerificationState::Passive, {}}
       },
       CheckerInvocationSpecs {
-       {11, RUPCheckResult::HasRUP},
-       {10, RUPCheckResult::HasRUP},
-       {9, RUPCheckResult::HasRUP},
-       {8, RUPCheckResult::ViolatesRUP}
+       {11, true},
+       {10, true},
+       {9, true},
+       {8, false}
       }
     },
 
@@ -267,7 +267,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {2, ClauseVerificationState::Passive, {1_Lit}}
       },
       CheckerInvocationSpecs {
-        {4, RUPCheckResult::HasRUP}
+        {4, true}
       }
     },
 
@@ -282,7 +282,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {2, ClauseVerificationState::Passive, {1_Lit}}
       },
       CheckerInvocationSpecs {
-        {4, RUPCheckResult::ViolatesRUP}
+        {4, false}
       }
     },
 
@@ -297,7 +297,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {2, ClauseVerificationState::Passive, {}}
       },
       CheckerInvocationSpecs {
-        {4, RUPCheckResult::HasRUP}
+        {4, true}
       }
     },
 
@@ -312,7 +312,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
         {2, ClauseVerificationState::Passive, {}}
       },
       CheckerInvocationSpecs {
-        {4, RUPCheckResult::HasRUP}
+        {4, true}
       }
     }
   ));

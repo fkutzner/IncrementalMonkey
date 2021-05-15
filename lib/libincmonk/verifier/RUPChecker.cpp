@@ -80,13 +80,13 @@ private:
 };
 }
 
-auto RUPChecker::checkRUP(gsl::span<Lit const> clause, ProofSequenceIdx index) -> RUPCheckResult
+auto RUPChecker::isRUP(gsl::span<Lit const> clause, ProofSequenceIdx index) -> bool
 {
   assert(index <= m_currentProofSequenceIndex &&
-         "The proof sequence idx must decrease monotonically");
+         "The proof sequence index must decrease monotonically");
 
   if (advanceProof(index) == AdvanceProofResult::UnaryConflict) {
-    return RUPCheckResult::HasRUP;
+    return true;
   }
 
   size_t const numAssignmentsAtStart = m_assignment.size();
@@ -100,7 +100,7 @@ auto RUPChecker::checkRUP(gsl::span<Lit const> clause, ProofSequenceIdx index) -
   }
   m_assignment.clear(numAssignmentsAtStart);
 
-  return hasRUP ? RUPCheckResult::HasRUP : RUPCheckResult::ViolatesRUP;
+  return hasRUP;
 }
 
 auto RUPChecker::assignAndPropagateToFixpoint(Lit toPropagate, std::optional<CRef> reason)
@@ -165,6 +165,9 @@ auto RUPChecker::propagate(Lit lit) -> PropagateResult
     }
 
     if (clause.getAddIdx() >= m_currentProofSequenceIndex) {
+      // Since the proof sequence index is monotonically decreasing, this
+      // clause won't be relevant until the next reset, so it can be safely
+      // removed for now:
       --watcherEnd;
       std::iter_swap(watcherIt, watcherEnd);
       continue;
