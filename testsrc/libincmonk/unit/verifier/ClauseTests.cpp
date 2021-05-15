@@ -69,13 +69,13 @@ void insertClausesAndCheck(ClauseCollection& underTest,
   std::vector<ClauseCollection::Ref> allocatedRefs;
   for (auto const& clause : inputClauses) {
     allocatedRefs.push_back(
-        underTest.add(clause, ClauseVerificationState::Irrendundant, clause.size()));
+        underTest.add(clause, ClauseVerificationState::Irredundant, clause.size()));
   }
 
   std::size_t idx = 0;
   for (ClauseCollection::Ref ref : allocatedRefs) {
     Clause const& cl = underTest.resolve(ref);
-    ASSERT_THAT(cl, ClauseEq(inputClauses[idx], ClauseVerificationState::Irrendundant, cl.size()));
+    ASSERT_THAT(cl, ClauseEq(inputClauses[idx], ClauseVerificationState::Irredundant, cl.size()));
     ++idx;
   }
 }
@@ -165,7 +165,7 @@ TEST_P(ClauseCollection_AllocationTests, MaxVarIsUpdatedOnAllocation)
     if (!clause.empty()) {
       maxSeenLit = std::max(maxSeenLit, *std::max_element(clause.begin(), clause.end()));
     }
-    underTest.add(clause, ClauseVerificationState::Irrendundant, 0);
+    underTest.add(clause, ClauseVerificationState::Irredundant, 0);
   }
 
   EXPECT_THAT(maxSeenLit.getVar(), underTest.getMaxVar());
@@ -233,7 +233,7 @@ TEST(ClauseCollection_FindTests, WhenClauseDBContainsSingleClause_ItIsReturnedBy
 {
   ClauseCollection underTest;
   CRef clause =
-      underTest.add(std::vector<Lit>{10_Lit, 20_Lit}, ClauseVerificationState::Irrendundant, 0);
+      underTest.add(std::vector<Lit>{10_Lit, 20_Lit}, ClauseVerificationState::Irredundant, 0);
   EXPECT_THAT(underTest.find(std::vector<Lit>{10_Lit}), Eq(std::nullopt));
   EXPECT_THAT(underTest.find(std::vector<Lit>{20_Lit, 10_Lit}), Eq(clause));
   EXPECT_THAT(underTest.find(std::vector<Lit>{10_Lit, 20_Lit}), Eq(clause));
@@ -242,7 +242,7 @@ TEST(ClauseCollection_FindTests, WhenClauseDBContainsSingleClause_ItIsReturnedBy
 TEST(ClauseCollection_FindTests, WhenAddIsCalledAfterFind_NewClausesCanBeFound)
 {
   ClauseCollection underTest;
-  auto const irredundant = ClauseVerificationState::Irrendundant;
+  auto const irredundant = ClauseVerificationState::Irredundant;
   CRef clause1 = underTest.add(std::vector<Lit>{10_Lit, 20_Lit}, irredundant, 0);
   EXPECT_THAT(underTest.find(std::vector<Lit>{10_Lit}), Eq(std::nullopt));
   CRef clause2 = underTest.add(std::vector<Lit>{1_Lit, -20_Lit, 5_Lit}, irredundant, 0);
@@ -270,7 +270,7 @@ auto toVec(gsl::span<T const> span) -> std::vector<T>
 TEST(ClauseCollection_OccurrenceTests, WhenClauseDBContainsOneClause_OnlyItsLiteralsAreInOccMap)
 {
   ClauseCollection underTest;
-  auto const irredundant = ClauseVerificationState::Irrendundant;
+  auto const irredundant = ClauseVerificationState::Irredundant;
   CRef clause1 = underTest.add(std::vector<Lit>{1_Lit, -20_Lit, 5_Lit}, irredundant, 0);
 
   EXPECT_THAT(toVec(underTest.getOccurrences(2_Lit)), IsEmpty());
@@ -285,7 +285,7 @@ TEST(ClauseCollection_OccurrenceTests, WhenClauseDBContainsOneClause_OnlyItsLite
 TEST(ClauseCollection_OccurrenceTests, WhenClauseDBContainsOneClause_ItsLiteralsAreInOccMap)
 {
   ClauseCollection underTest;
-  auto const irredundant = ClauseVerificationState::Irrendundant;
+  auto const irredundant = ClauseVerificationState::Irredundant;
   CRef clause1 = underTest.add(std::vector<Lit>{1_Lit, -20_Lit, 5_Lit}, irredundant, 0);
 
   EXPECT_THAT(toVec(underTest.getOccurrences(1_Lit)), UnorderedElementsAre(clause1));
@@ -316,7 +316,7 @@ namespace {
 template <typename Clause>
 void checkClauseStateStore(Clause& clause)
 {
-  EXPECT_THAT(clause.getState(), Eq(ClauseVerificationState::Irrendundant));
+  EXPECT_THAT(clause.getState(), Eq(ClauseVerificationState::Irredundant));
   clause.setState(ClauseVerificationState::Verified);
   EXPECT_THAT(clause.getState(), Eq(ClauseVerificationState::Verified));
   clause.setState(ClauseVerificationState::Passive);
@@ -328,7 +328,7 @@ TEST(ClauseTests, WhenClauseStateIsSet_itsValueChanges)
 {
   ClauseCollection underTest;
   CRef clauseRef = underTest.add(
-      std::vector<Lit>{1_Lit, 2_Lit, 3_Lit}, ClauseVerificationState::Irrendundant, 1);
+      std::vector<Lit>{1_Lit, 2_Lit, 3_Lit}, ClauseVerificationState::Irredundant, 1);
   Clause& clause = underTest.resolve(clauseRef);
   checkClauseStateStore(clause);
 }

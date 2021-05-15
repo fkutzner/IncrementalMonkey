@@ -101,7 +101,7 @@ auto maxLit(Var var) noexcept -> Lit;
 
 enum class ClauseVerificationState : uint8_t {
   /// The clause is part of the problem instance, no verification required
-  Irrendundant = 0,
+  Irredundant = 0,
 
   /// The clause is a lemma and has not yet been determined to be relevant for the proof
   Passive = 1,
