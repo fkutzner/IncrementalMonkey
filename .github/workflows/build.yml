@@ -11,7 +11,12 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+        # TODO: run on Ubuntu 20 and macOS 10.15
 
     steps:
     - uses: actions/checkout@v2
@@ -23,7 +28,7 @@ jobs:
       run: cmake -B ${{github.workspace}}/build -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/install -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} buildscript
 
     - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} -j2
 
     - name: Test
       working-directory: ${{github.workspace}}/build
