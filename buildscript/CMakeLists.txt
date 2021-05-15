@@ -26,8 +26,5 @@ ExternalProject_Add(IncrementalMonkey
   CMAKE_ARGS
     -DCMAKE_PREFIX_PATH="${CMAKE_INSTALL_PREFIX}"
     -DCMAKE_INSTALL_PREFIX="${CMAKE_INSTALL_PREFIX}"
-
-  TEST_COMMAND "${CMAKE_CURRENT_BINARY_DIR}/src/IncrementalMonkey-build/bin/incmonktests.libincmonk.unit"
-  TEST_AFTER_INSTALL TRUE
 )
 
