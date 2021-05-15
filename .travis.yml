@@ -16,7 +16,7 @@ osx_image: xcode12
 addons:
   apt:
     packages:
-    - clang-9
+    - clang-10
 
 # TODO: add sanitizer & coverage builds
 # TODO: add support for bionic builds
