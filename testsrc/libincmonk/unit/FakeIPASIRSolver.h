@@ -30,6 +30,7 @@
 #include <libincmonk/FuzzTrace.h>
 #include <libincmonk/IPASIRSolver.h>
 
+#include <cassert>
 #include <unordered_set>
 #include <vector>
 

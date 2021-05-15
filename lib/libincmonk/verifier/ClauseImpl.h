@@ -151,7 +151,7 @@ constexpr auto Lit::operator>=(Lit rhs) const -> bool
 
 inline auto operator""_Lit(unsigned long long cnfValue) -> Lit
 {
-  Var var{static_cast<uint32_t>(cnfValue < 0 ? -cnfValue : cnfValue)};
+  Var var{static_cast<uint32_t>(cnfValue)};
   return Lit{var, cnfValue > 0};
 }
 
