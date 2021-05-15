@@ -12,13 +12,15 @@ enum RUPCheckResult { HasRUP, ViolatesRUP };
 
 class RUPChecker {
 public:
-  explicit RUPChecker(ClauseCollection& clauses);
+  explicit RUPChecker(ClauseCollection& clauses, gsl::span<Lit const> assumptions);
 
   auto checkRUP(gsl::span<Lit const> clause, ProofSequenceIdx index) -> RUPCheckResult;
+  void reset(gsl::span<Lit const> assumptions);
+
 
 private:
   void setupWatchers();
-  void initializeProof();
+  void initializeProof(gsl::span<Lit const> assumptions);
 
   enum class AdvanceProofResult { UnaryConflict, NoConflict };
   auto advanceProof(ProofSequenceIdx index) -> AdvanceProofResult;

@@ -3,20 +3,24 @@
 #include <cassert>
 
 namespace incmonk::verifier {
-RUPChecker::RUPChecker(ClauseCollection& clauses)
+RUPChecker::RUPChecker(ClauseCollection& clauses, gsl::span<Lit const> assumptions)
   : m_clauses{clauses}
   , m_assignment{clauses.getMaxVar()}
   , m_watchers{maxLit(clauses.getMaxVar())}
   , m_reasons{maxLit(clauses.getMaxVar())}
 {
-  setupWatchers();
-  initializeProof();
+  reset(assumptions);
 }
 
 void RUPChecker::setupWatchers()
 {
   for (CRef const& clauseRef : m_clauses) {
     Clause const& clause = m_clauses.resolve(clauseRef);
+
+    if (m_currentProofSequenceIndex <= clause.getAddIdx()) {
+      continue;
+    }
+
     if (clause.size() > 1) {
       m_watchers[-clause[0]].push_back(Watcher{clauseRef, clause[1]});
       m_watchers[-clause[1]].push_back(Watcher{clauseRef, clause[0]});
@@ -24,10 +28,22 @@ void RUPChecker::setupWatchers()
   }
 }
 
-void RUPChecker::initializeProof()
+void RUPChecker::initializeProof(gsl::span<Lit const> assumptions)
 {
+  m_unaries.clear();
+  m_assignment.clear(0);
+
+  for (Lit const& assumption : assumptions) {
+    m_unaries.emplace_back(assumption, std::nullopt);
+    m_assignment.add(assumption);
+  }
+
   for (CRef const& cref : m_clauses) {
     Clause& clause = m_clauses.resolve(cref);
+
+    if (m_currentProofSequenceIndex <= clause.getAddIdx()) {
+      continue;
+    }
 
     if (clause.size() == 1) {
       Lit const unaryLit = clause[0];
@@ -44,6 +60,13 @@ void RUPChecker::initializeProof()
   }
 
   m_assignment.clear(0);
+}
+
+void RUPChecker::reset(gsl::span<Lit const> assumptions)
+{
+  setupWatchers();
+  initializeProof(assumptions);
+  m_currentProofSequenceIndex = std::numeric_limits<ProofSequenceIdx>::max();
 }
 
 namespace {

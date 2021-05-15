@@ -27,9 +27,11 @@ struct CheckerInvocationSpec {
 };
 
 using CheckerInvocationSpecs = std::vector<CheckerInvocationSpec>;
+using Assumptions = std::vector<Lit>;
 
 struct RUPCheckerTestSpec {
   std::string description;
+  Assumptions assumptions;
   std::vector<TestClause> proof;
   CheckerInvocationSpecs invocationSpecs;
 };
@@ -47,7 +49,7 @@ public:
   {
     RUPCheckerTestSpec const& testSpec = GetParam();
     SetUpClauseCollection(testSpec);
-    SetUpRUPChecker();
+    SetUpRUPChecker(testSpec.assumptions);
   }
 
   void SetUpClauseCollection(RUPCheckerTestSpec const& testSpec)
@@ -57,7 +59,10 @@ public:
     }
   }
 
-  void SetUpRUPChecker() { mUnderTest = std::make_unique<RUPChecker>(mClauseCollection); }
+  void SetUpRUPChecker(std::vector<Lit> const& assumptions)
+  {
+    mUnderTest = std::make_unique<RUPChecker>(mClauseCollection, assumptions);
+  }
 
 protected:
   ClauseCollection mClauseCollection;
@@ -84,6 +89,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
 
     RUPCheckerTestSpec {
       "Contradictory unary has RUP",
+      Assumptions{},
       TestClauses {
         {1, ClauseVerificationState::Irredundant, {1_Lit}},
         {2, ClauseVerificationState::Passive, {1_Lit}}
@@ -95,6 +101,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
 
     RUPCheckerTestSpec {
       "Multiple contradictory unaries with RUP",
+      Assumptions{},
       TestClauses {
         {1, ClauseVerificationState::Irredundant, {1_Lit}},
         {2, ClauseVerificationState::Passive, {1_Lit}},
@@ -117,6 +124,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
 
     RUPCheckerTestSpec {
       "Empty clause after contradictory unaries has RUP",
+      Assumptions{},
       TestClauses {
         {1, ClauseVerificationState::Irredundant, {1_Lit}},
         {2, ClauseVerificationState::Irredundant, {-1_Lit}},
@@ -129,6 +137,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
 
     RUPCheckerTestSpec {
       "Small real, correct, nontrivial RUP problem without non-empty passive clauses",
+      Assumptions{},
       TestClauses {
         {1, ClauseVerificationState::Irredundant, {1_Lit, 3_Lit}},
         {1, ClauseVerificationState::Irredundant, {-3_Lit, 2_Lit}},
@@ -144,6 +153,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
 
     RUPCheckerTestSpec {
       "Minimal RUP problem without direct unary conflict (positive)",
+      Assumptions{},
       TestClauses {
         {1, ClauseVerificationState::Irredundant, {1_Lit, 2_Lit}},
         {1, ClauseVerificationState::Irredundant, {-1_Lit, -2_Lit}},
@@ -158,6 +168,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
 
     RUPCheckerTestSpec {
       "Minimal RUP problem without direct unary conflict (negative)",
+      Assumptions{},
       TestClauses {
         {1, ClauseVerificationState::Irredundant, {1_Lit, 2_Lit}},
         {1, ClauseVerificationState::Irredundant, {-1_Lit, -2_Lit}},
@@ -171,6 +182,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
 
     RUPCheckerTestSpec {
       "Future clauses are ignored",
+      Assumptions{},
       TestClauses {
         {1, ClauseVerificationState::Irredundant, {1_Lit, 2_Lit}},
         {1, ClauseVerificationState::Irredundant, {-1_Lit, -2_Lit}},
@@ -189,6 +201,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
 
     RUPCheckerTestSpec {
       "RUP problem with ternary clauses (positive)",
+      Assumptions{},
       TestClauses {
         // Unsatisfiable problem instance
         {0, ClauseVerificationState::Irredundant, {1_Lit,  2_Lit, -3_Lit}},
@@ -216,6 +229,7 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
 
     RUPCheckerTestSpec {
       "RUP problem with ternary clauses (negative, due to bad proof ordering)",
+      Assumptions{},
       TestClauses {
         // Unsatisfiable problem instance
         {0, ClauseVerificationState::Irredundant, {1_Lit,  2_Lit, -3_Lit}},
@@ -239,6 +253,66 @@ INSTANTIATE_TEST_SUITE_P(RUPCheckerTest, RUPCheckerTest,
        {10, RUPCheckResult::HasRUP},
        {9, RUPCheckResult::HasRUP},
        {8, RUPCheckResult::ViolatesRUP}
+      }
+    },
+
+    RUPCheckerTestSpec {
+      "Minimal RUP problem without direct unary conflict, with assumptions (positive)",
+      Assumptions{-5_Lit},
+      TestClauses {
+        {1, ClauseVerificationState::Irredundant, {5_Lit, 1_Lit, 2_Lit}},
+        {1, ClauseVerificationState::Irredundant, {-1_Lit, -2_Lit}},
+        {1, ClauseVerificationState::Irredundant, {1_Lit, -2_Lit}},
+        {1, ClauseVerificationState::Irredundant, {-1_Lit, 2_Lit}},
+        {2, ClauseVerificationState::Passive, {1_Lit}}
+      },
+      CheckerInvocationSpecs {
+        {4, RUPCheckResult::HasRUP}
+      }
+    },
+
+    RUPCheckerTestSpec {
+      "Minimal RUP problem without direct unary conflict, with assumptions (negative)",
+      Assumptions{5_Lit},
+      TestClauses {
+        {1, ClauseVerificationState::Irredundant, {5_Lit, 1_Lit, 2_Lit}},
+        {1, ClauseVerificationState::Irredundant, {-1_Lit, -2_Lit}},
+        {1, ClauseVerificationState::Irredundant, {1_Lit, -2_Lit}},
+        {1, ClauseVerificationState::Irredundant, {-1_Lit, 2_Lit}},
+        {2, ClauseVerificationState::Passive, {1_Lit}}
+      },
+      CheckerInvocationSpecs {
+        {4, RUPCheckResult::ViolatesRUP}
+      }
+    },
+
+    RUPCheckerTestSpec {
+      "Problem with assumptions directly contradicting a clause literal",
+      Assumptions{1_Lit},
+      TestClauses {
+        {1, ClauseVerificationState::Irredundant, {1_Lit, 3_Lit}},
+        {1, ClauseVerificationState::Irredundant, {-3_Lit, 2_Lit}},
+        {1, ClauseVerificationState::Irredundant, {-1_Lit, -2_Lit}},
+        {1, ClauseVerificationState::Irredundant, {-1_Lit}},
+        {2, ClauseVerificationState::Passive, {}}
+      },
+      CheckerInvocationSpecs {
+        {4, RUPCheckResult::HasRUP}
+      }
+    },
+
+    RUPCheckerTestSpec {
+      "Problem with assumptions indirectly contradicting a clause literal",
+      Assumptions{-1_Lit},
+      TestClauses {
+        {1, ClauseVerificationState::Irredundant, {1_Lit, 3_Lit}},
+        {1, ClauseVerificationState::Irredundant, {-3_Lit, 2_Lit}},
+        {1, ClauseVerificationState::Irredundant, {-1_Lit, -2_Lit}},
+        {1, ClauseVerificationState::Irredundant, {-2_Lit}},
+        {2, ClauseVerificationState::Passive, {}}
+      },
+      CheckerInvocationSpecs {
+        {4, RUPCheckResult::HasRUP}
       }
     }
   ));
