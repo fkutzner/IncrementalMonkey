@@ -109,36 +109,17 @@ generating harder problem instances.
 
 ## Building Incremental Monkey
 
-**Summary:** build `https://github.com/fkutzner/IncrementalMonkey` with
-a CryptoMiniSat 5.8.0 installation in your `CMAKE_PREFIX_PATH`.
-
-### Step-by-step build guide
-
-In the following snippets, `<INSTALLDIR>` is an arbitrary directory
-where you want `bin/monkey` to end up (e.g. `~/tools` or
-`/usr/local`).
-
-Build CryptoMiniSat:
+The simplest way of building Incremental Monkey is to use the CMake
+"superbuild", which will also build CryptoMiniSat. To build and install
+Incremental Monkey to a directory `<INSTALLDIR>`, run the following steps:
 
 ```
-# git clone --depth 1 --branch 5.8.0 https://github.com/msoos/cryptominisat
-# mkdir cms-build
-# cd cms-build
-# cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=<INSTALLDIR> ../cryptominisat
-# cmake --build . --target install
-```
-
-Build Incremental Monkey:
-```
-# git clone https://github.com/fkutzner/IncrementalMonkey
-# cd IncrementalMonkey
-# git submodule init
-# git submodule update
-# cd ..
-# mkdir monkey-build
-# cd monkey-build
-# cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=<INSTALLDIR> ../IncrementalMonkey
-# cmake --build . --target install
+git clone https://github.com/fkutzner/IncrementalMonkey
+cd IncrementalMonkey
+git submodule init && git submodule update
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<TargetDir> ../buildscript
+cmake --build .
 ```
 
 Run `monkey`:
@@ -146,6 +127,4 @@ Run `monkey`:
 # cd <INSTALLDIR>
 # bin/monkey --help
 ```
-
-
 
