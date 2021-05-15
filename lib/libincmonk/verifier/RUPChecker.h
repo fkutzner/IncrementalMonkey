@@ -36,8 +36,7 @@ private:
   ClauseCollection& m_clauses;
 
   /**
-   * The current assignment. Unary clause assignments are preserved between
-   * proof steps.
+   * The current variable assignment.
    */
   Assignment m_assignment;
 
@@ -63,5 +62,10 @@ private:
    * The current proof sequence index, a monotonically decreasing value.
    */
   ProofSequenceIdx m_currentProofSequenceIndex = std::numeric_limits<ProofSequenceIdx>::max();
+
+  /**
+   * List of current unaries.
+   */
+  std::vector<std::pair<Lit, std::optional<CRef>>> m_unaries;
 };
 }

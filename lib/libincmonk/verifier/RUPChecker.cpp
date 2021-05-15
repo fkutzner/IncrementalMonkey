@@ -35,12 +35,15 @@ void RUPChecker::initializeProof()
       if (m_assignment.get(unaryLit) == t_indet) {
         m_assignment.add(unaryLit);
         m_reasons[unaryLit] = cref;
+        m_unaries.emplace_back(unaryLit, cref);
       }
       else if (m_assignment.get(unaryLit) == t_false) {
         m_directUnaryConflicts.push_back(cref);
       }
     }
   }
+
+  m_assignment.clear(0);
 }
 
 namespace {
@@ -178,7 +181,6 @@ auto RUPChecker::propagate(Lit lit) -> PropagateResult
 
 auto RUPChecker::advanceProof(ProofSequenceIdx index) -> AdvanceProofResult
 {
-  bool recomputeUnariesRequired = (m_currentProofSequenceIndex == std::numeric_limits<ProofSequenceIdx>::max());
   m_currentProofSequenceIndex = index;
 
   auto staleDirectConflicts = std::remove_if(
@@ -191,31 +193,21 @@ auto RUPChecker::advanceProof(ProofSequenceIdx index) -> AdvanceProofResult
     return AdvanceProofResult::UnaryConflict;
   }
 
-  std::vector<CRef> unaries;
-  for (Lit const& lit : m_assignment.range(0)) {
-    CRef const reasonRef = *m_reasons[lit];
-    Clause const& reason = m_clauses.resolve(reasonRef);
-    if (reason.getAddIdx() >= index) {
-      recomputeUnariesRequired = true;
-    }
-    else if (reason.size() == 1) {
-      unaries.push_back(reasonRef);
-    }
-  }
-
-  if (recomputeUnariesRequired) {
-    m_assignment.clear(0);
-
-    for (CRef const& unaryRef : unaries) {
-      Clause const& reason = m_clauses.resolve(unaryRef);
-      Lit const unaryLit = reason[0];
-      if (assignAndPropagateToFixpoint(unaryLit, unaryRef) == PropagateResult::Conflict) {
-        return AdvanceProofResult::UnaryConflict;
+  // Future optimization: keep unary assignments between checkRUP calls when possible
+  m_assignment.clear(0);
+  for (auto const& [unary, unaryCRef] : m_unaries) {
+    if (unaryCRef.has_value()) {
+      Clause const& unaryClause = m_clauses.resolve(*unaryCRef);
+      if (unaryClause.getAddIdx() >= m_currentProofSequenceIndex) {
+        continue;
       }
+    }
+
+    if (assignAndPropagateToFixpoint(unary, unaryCRef) == PropagateResult::Conflict) {
+      return AdvanceProofResult::UnaryConflict;
     }
   }
 
   return AdvanceProofResult::NoConflict;
 }
 }
-

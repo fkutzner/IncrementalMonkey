@@ -327,8 +327,8 @@ void checkClauseStateStore(Clause& clause)
 TEST(ClauseTests, WhenClauseStateIsSet_itsValueChanges)
 {
   ClauseCollection underTest;
-  CRef clauseRef = underTest.add(
-      std::vector<Lit>{1_Lit, 2_Lit, 3_Lit}, ClauseVerificationState::Irredundant, 1);
+  CRef clauseRef =
+      underTest.add(std::vector<Lit>{1_Lit, 2_Lit, 3_Lit}, ClauseVerificationState::Irredundant, 1);
   Clause& clause = underTest.resolve(clauseRef);
   checkClauseStateStore(clause);
 }
